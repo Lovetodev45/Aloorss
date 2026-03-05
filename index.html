@@ -851,6 +851,222 @@
         }
 
         .toast.visible { transform: translateX(-50%) translateY(0); }
+
+        /* Automation Dashboard */
+        .auto-tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .auto-tab {
+            padding: 0.7rem 1.2rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .auto-tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+        }
+
+        .auto-tab-content { display: none; }
+        .auto-tab-content.active { display: block; }
+
+        .auto-status {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-badge.on {
+            background: rgba(34,197,94,0.15);
+            color: var(--green);
+        }
+
+        .status-badge.off {
+            background: rgba(113,113,122,0.15);
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.on { background: var(--green); animation: pulse 2s infinite; }
+        .status-dot.off { background: var(--text-muted); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .log-container {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.78rem;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            color: var(--text-muted);
+        }
+
+        .log-entry .log-time {
+            color: var(--accent-light);
+            margin-right: 0.5rem;
+        }
+
+        .queue-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .queue-item h4 {
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .queue-item p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .queue-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .queue-actions button {
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            border: none;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .queue-actions .btn-publish {
+            background: var(--green);
+            color: #000;
+        }
+
+        .queue-actions .btn-discard {
+            background: rgba(220,38,38,0.2);
+            color: #dc2626;
+        }
+
+        .feed-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 0.82rem;
+        }
+
+        .feed-item .feed-toggle {
+            appearance: none;
+            width: 36px;
+            height: 20px;
+            background: var(--border);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .feed-item .feed-toggle:checked {
+            background: var(--green);
+        }
+
+        .feed-item .feed-toggle::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+        }
+
+        .feed-item .feed-toggle:checked::after {
+            left: 18px;
+        }
+
+        .switch-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+
+        .switch-row label {
+            font-size: 0.85rem;
+        }
+
+        .switch-row input[type="checkbox"] {
+            appearance: none;
+            width: 44px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .switch-row input[type="checkbox"]:checked {
+            background: var(--accent);
+        }
+
+        .switch-row input[type="checkbox"]::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+        }
+
+        .switch-row input[type="checkbox"]:checked::after {
+            left: 22px;
+        }
     </style>
 </head>
 <body>
@@ -992,81 +1208,234 @@
 
 <div class="admin-panel" id="admin-panel">
     <h2>
-        Administration
+        Panneau de controle
         <button class="close-btn" onclick="toggleAdmin()">&times;</button>
     </h2>
 
-    <div class="admin-section">
-        <h3>Ajouter un article</h3>
-        <div class="admin-field">
-            <label>Titre</label>
-            <input type="text" id="admin-title" placeholder="Titre de l'article">
-        </div>
-        <div class="admin-field">
-            <label>Extrait (description courte)</label>
-            <input type="text" id="admin-excerpt" placeholder="Resumee en 1-2 phrases">
-        </div>
-        <div class="admin-field">
-            <label>Contenu complet</label>
-            <textarea id="admin-content" placeholder="Le texte complet de l'article..."></textarea>
-        </div>
-        <div class="admin-field">
-            <label>Categorie</label>
-            <select id="admin-category">
-                <option value="news">Actualite</option>
-                <option value="tools">Outils</option>
-                <option value="tuto">Tutoriel</option>
-                <option value="ai">IA / Analyse</option>
-            </select>
-        </div>
-        <div class="admin-field">
-            <label>
-                <input type="checkbox" id="admin-premium"> Contenu Premium (payant)
-            </label>
-        </div>
-        <button class="admin-btn" onclick="addArticle()">Publier l'article</button>
+    <!-- Tab Bar -->
+    <div class="auto-tab-bar">
+        <button class="auto-tab active" onclick="switchAdminTab('automation')">Automatisation</button>
+        <button class="auto-tab" onclick="switchAdminTab('content')">Contenu</button>
+        <button class="auto-tab" onclick="switchAdminTab('newsletter')">Newsletter</button>
+        <button class="auto-tab" onclick="switchAdminTab('data')">Donnees</button>
     </div>
 
-    <div class="admin-section">
-        <h3>Ajouter un outil</h3>
-        <div class="admin-field">
-            <label>Nom</label>
-            <input type="text" id="admin-tool-name" placeholder="Nom de l'outil">
+    <!-- TAB: Automation -->
+    <div class="auto-tab-content active" id="tab-automation">
+        <div class="auto-status" id="auto-status-badges"></div>
+
+        <div class="admin-section">
+            <h3>Configuration IA</h3>
+            <div class="admin-field">
+                <label>Fournisseur IA</label>
+                <select id="auto-provider" onchange="updateAutoConfig()">
+                    <option value="openai">OpenAI (GPT-4o-mini)</option>
+                    <option value="anthropic">Anthropic (Claude Haiku)</option>
+                </select>
+            </div>
+            <div class="admin-field">
+                <label>Cle API</label>
+                <input type="password" id="auto-apikey" placeholder="sk-..." onchange="updateAutoConfig()">
+            </div>
         </div>
-        <div class="admin-field">
-            <label>Description</label>
-            <input type="text" id="admin-tool-desc" placeholder="Description courte">
+
+        <div class="admin-section">
+            <h3>Pipeline automatique</h3>
+            <div class="switch-row">
+                <label>Generation auto d'articles</label>
+                <input type="checkbox" id="auto-generate-toggle" onchange="updateAutoConfig()">
+            </div>
+            <div class="switch-row">
+                <label>Publication auto (sinon file d'attente)</label>
+                <input type="checkbox" id="auto-publish-toggle" onchange="updateAutoConfig()">
+            </div>
+            <div class="admin-field">
+                <label>Intervalle de generation (heures)</label>
+                <input type="number" id="auto-interval" value="6" min="1" max="24" onchange="updateAutoConfig()">
+            </div>
+            <div class="admin-field">
+                <label>Max articles/jour</label>
+                <input type="number" id="auto-max" value="5" min="1" max="20" onchange="updateAutoConfig()">
+            </div>
+            <button class="admin-btn" onclick="manualRunCycle()" style="margin-bottom:0.5rem">Lancer un cycle maintenant</button>
+            <button class="admin-btn" onclick="manualFetchFeeds()" style="background:var(--surface-2);border:1px solid var(--border);">Tester les flux RSS</button>
         </div>
-        <div class="admin-field">
-            <label>URL</label>
-            <input type="text" id="admin-tool-url" placeholder="https://...">
+
+        <div class="admin-section">
+            <h3>Flux RSS (<span id="feed-count">0</span> actifs)</h3>
+            <div id="feeds-list"></div>
+            <div class="add-row" style="margin-top:0.8rem">
+                <input type="text" id="new-feed-name" placeholder="Nom">
+                <input type="text" id="new-feed-url" placeholder="URL du flux RSS">
+                <button class="btn-small" onclick="addFeed()">+</button>
+            </div>
         </div>
-        <div class="admin-field">
-            <label>Prix</label>
-            <select id="admin-tool-pricing">
-                <option value="Gratuit">Gratuit</option>
-                <option value="Freemium">Freemium</option>
-                <option value="Payant">Payant</option>
-            </select>
+
+        <div class="admin-section">
+            <h3>File d'attente (<span id="queue-count">0</span>)</h3>
+            <div id="queue-list"></div>
+            <button class="admin-btn" onclick="publishAllFromQueue()" id="publish-all-btn" style="display:none;margin-top:0.5rem">Tout publier</button>
         </div>
-        <button class="admin-btn" onclick="addTool()">Ajouter l'outil</button>
+
+        <div class="admin-section">
+            <h3>Journal d'activite</h3>
+            <div class="log-container" id="auto-log"></div>
+        </div>
     </div>
 
-    <div class="admin-section">
-        <h3>Articles existants</h3>
-        <div class="admin-articles-list" id="admin-articles-list"></div>
+    <!-- TAB: Content -->
+    <div class="auto-tab-content" id="tab-content">
+        <div class="admin-section">
+            <h3>Ajouter un article manuellement</h3>
+            <div class="admin-field">
+                <label>Titre</label>
+                <input type="text" id="admin-title" placeholder="Titre de l'article">
+            </div>
+            <div class="admin-field">
+                <label>Extrait (description courte)</label>
+                <input type="text" id="admin-excerpt" placeholder="Resume en 1-2 phrases">
+            </div>
+            <div class="admin-field">
+                <label>Contenu complet</label>
+                <textarea id="admin-content" placeholder="Le texte complet de l'article..."></textarea>
+            </div>
+            <div class="admin-field">
+                <label>Categorie</label>
+                <select id="admin-category">
+                    <option value="news">Actualite</option>
+                    <option value="tools">Outils</option>
+                    <option value="tuto">Tutoriel</option>
+                    <option value="ai">IA / Analyse</option>
+                </select>
+            </div>
+            <div class="admin-field">
+                <label>
+                    <input type="checkbox" id="admin-premium"> Contenu Premium (payant)
+                </label>
+            </div>
+            <button class="admin-btn" onclick="addArticle()">Publier l'article</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>Ajouter un outil</h3>
+            <div class="admin-field">
+                <label>Nom</label>
+                <input type="text" id="admin-tool-name" placeholder="Nom de l'outil">
+            </div>
+            <div class="admin-field">
+                <label>Description</label>
+                <input type="text" id="admin-tool-desc" placeholder="Description courte">
+            </div>
+            <div class="admin-field">
+                <label>URL</label>
+                <input type="text" id="admin-tool-url" placeholder="https://...">
+            </div>
+            <div class="admin-field">
+                <label>Prix</label>
+                <select id="admin-tool-pricing">
+                    <option value="Gratuit">Gratuit</option>
+                    <option value="Freemium">Freemium</option>
+                    <option value="Payant">Payant</option>
+                </select>
+            </div>
+            <button class="admin-btn" onclick="addTool()">Ajouter l'outil</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>Articles existants (<span id="articles-count">0</span>)</h3>
+            <div class="admin-articles-list" id="admin-articles-list"></div>
+        </div>
     </div>
 
-    <div class="admin-section">
-        <h3>Donnees</h3>
-        <button class="admin-btn" onclick="exportData()" style="margin-bottom:0.5rem">Exporter (JSON)</button>
-        <div class="admin-field">
-            <label>Importer (JSON)</label>
-            <textarea id="import-data" placeholder='Colle le JSON ici...' style="min-height:60px"></textarea>
+    <!-- TAB: Newsletter -->
+    <div class="auto-tab-content" id="tab-newsletter">
+        <div class="admin-section">
+            <h3>Configuration newsletter</h3>
+            <div class="switch-row">
+                <label>Newsletter automatique</label>
+                <input type="checkbox" id="nl-enabled" onchange="updateNewsletterConfig()">
+            </div>
+            <div class="admin-field">
+                <label>Fournisseur</label>
+                <select id="nl-provider" onchange="updateNewsletterConfig()">
+                    <option value="emailjs">EmailJS (gratuit, facile)</option>
+                    <option value="webhook">Webhook (Zapier, Make, n8n...)</option>
+                </select>
+            </div>
         </div>
-        <button class="admin-btn" onclick="importData()">Importer</button>
-        <br><br>
-        <button class="admin-btn danger" onclick="if(confirm('Tout supprimer ?')){localStorage.clear();location.reload();}">Reinitialiser</button>
+
+        <div class="admin-section" id="nl-emailjs-config">
+            <h3>Configuration EmailJS</h3>
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.8rem;">
+                Cree un compte gratuit sur emailjs.com, configure un service email et un template.
+            </p>
+            <div class="admin-field">
+                <label>Service ID</label>
+                <input type="text" id="nl-ejs-service" placeholder="service_xxxxx" onchange="updateNewsletterConfig()">
+            </div>
+            <div class="admin-field">
+                <label>Template ID</label>
+                <input type="text" id="nl-ejs-template" placeholder="template_xxxxx" onchange="updateNewsletterConfig()">
+            </div>
+            <div class="admin-field">
+                <label>Public Key</label>
+                <input type="text" id="nl-ejs-pubkey" placeholder="Votre cle publique" onchange="updateNewsletterConfig()">
+            </div>
+        </div>
+
+        <div class="admin-section" id="nl-webhook-config" style="display:none">
+            <h3>Configuration Webhook</h3>
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.8rem;">
+                Utilise un webhook Zapier, Make ou n8n pour envoyer les emails. Le JSON contient les abonnes et le contenu.
+            </p>
+            <div class="admin-field">
+                <label>URL du webhook</label>
+                <input type="text" id="nl-webhook-url" placeholder="https://hooks.zapier.com/..." onchange="updateNewsletterConfig()">
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <h3>Planification</h3>
+            <div class="admin-field">
+                <label>Heure d'envoi</label>
+                <input type="time" id="nl-time" value="08:00" onchange="updateNewsletterConfig()">
+            </div>
+            <div class="admin-field">
+                <label>Frequence</label>
+                <select id="nl-frequency" onchange="updateNewsletterConfig()">
+                    <option value="daily">Quotidienne</option>
+                    <option value="weekly">Hebdomadaire</option>
+                </select>
+            </div>
+            <button class="admin-btn" onclick="manualSendNewsletter()">Envoyer maintenant</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>Abonnes (<span id="nl-sub-count">0</span>)</h3>
+            <div id="nl-subscribers-list" style="max-height:200px;overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <!-- TAB: Data -->
+    <div class="auto-tab-content" id="tab-data">
+        <div class="admin-section">
+            <h3>Export / Import</h3>
+            <button class="admin-btn" onclick="exportAllData()" style="margin-bottom:0.5rem">Exporter tout (contenu + config)</button>
+            <button class="admin-btn" onclick="exportData()" style="margin-bottom:0.5rem;background:var(--surface-2);border:1px solid var(--border);">Exporter contenu seul</button>
+            <div class="admin-field">
+                <label>Importer (JSON)</label>
+                <textarea id="import-data" placeholder='Colle le JSON ici...' style="min-height:60px"></textarea>
+            </div>
+            <button class="admin-btn" onclick="importData()">Importer</button>
+        </div>
+        <div class="admin-section">
+            <h3>Zone dangereuse</h3>
+            <button class="admin-btn danger" onclick="if(confirm('Supprimer tout le contenu ?')){localStorage.removeItem('aloorss_data');location.reload();}">Reinitialiser le contenu</button>
+            <br><br>
+            <button class="admin-btn danger" onclick="if(confirm('Supprimer toute la configuration auto ?')){localStorage.removeItem('aloorss_automation');location.reload();}">Reinitialiser l'automatisation</button>
+            <br><br>
+            <button class="admin-btn danger" onclick="if(confirm('TOUT supprimer ? Cette action est irreversible.')){localStorage.clear();location.reload();}">Tout reinitialiser</button>
+        </div>
     </div>
 </div>
 
@@ -1488,6 +1857,215 @@ document.addEventListener('keydown', e => {
 
 // Init
 render();
+</script>
+<script src="automation.js"></script>
+<script>
+// ========== AUTOMATION DASHBOARD ==========
+
+function switchAdminTab(tab) {
+    document.querySelectorAll('.auto-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auto-tab-content').forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'automation') renderAutomationDashboard();
+    if (tab === 'newsletter') renderNewsletterDashboard();
+    if (tab === 'content') renderAdminArticles();
+}
+
+function renderAutomationDashboard() {
+    // Status badges
+    const badges = document.getElementById('auto-status-badges');
+    badges.innerHTML = `
+        <span class="status-badge ${autoConfig.autoGenerate ? 'on' : 'off'}">
+            <span class="status-dot ${autoConfig.autoGenerate ? 'on' : 'off'}"></span>
+            Generation ${autoConfig.autoGenerate ? 'ON' : 'OFF'}
+        </span>
+        <span class="status-badge ${autoConfig.autoPublish ? 'on' : 'off'}">
+            <span class="status-dot ${autoConfig.autoPublish ? 'on' : 'off'}"></span>
+            Pub. auto ${autoConfig.autoPublish ? 'ON' : 'OFF'}
+        </span>
+        <span class="status-badge ${autoConfig.newsletterEnabled ? 'on' : 'off'}">
+            <span class="status-dot ${autoConfig.newsletterEnabled ? 'on' : 'off'}"></span>
+            Newsletter ${autoConfig.newsletterEnabled ? 'ON' : 'OFF'}
+        </span>
+    `;
+
+    // Config fields
+    document.getElementById('auto-provider').value = autoConfig.aiProvider;
+    document.getElementById('auto-apikey').value = autoConfig.apiKey;
+    document.getElementById('auto-generate-toggle').checked = autoConfig.autoGenerate;
+    document.getElementById('auto-publish-toggle').checked = autoConfig.autoPublish;
+    document.getElementById('auto-interval').value = autoConfig.generateInterval;
+    document.getElementById('auto-max').value = autoConfig.maxArticlesPerDay;
+
+    // Feeds
+    const feedsList = document.getElementById('feeds-list');
+    const enabledCount = autoConfig.feeds.filter(f => f.enabled).length;
+    document.getElementById('feed-count').textContent = enabledCount;
+    feedsList.innerHTML = autoConfig.feeds.map((f, i) => `
+        <div class="feed-item">
+            <span>${f.name}</span>
+            <input type="checkbox" class="feed-toggle" ${f.enabled ? 'checked' : ''}
+                   onchange="toggleFeed(${i})">
+        </div>
+    `).join('');
+
+    // Queue
+    const queueList = document.getElementById('queue-list');
+    const queue = autoConfig.generationQueue || [];
+    document.getElementById('queue-count').textContent = queue.length;
+    document.getElementById('publish-all-btn').style.display = queue.length > 0 ? 'block' : 'none';
+    queueList.innerHTML = queue.length === 0
+        ? '<p style="color:var(--text-muted);font-size:0.8rem;">File vide. Lance un cycle pour generer des articles.</p>'
+        : queue.map((a, i) => `
+            <div class="queue-item">
+                <h4>${a.title}</h4>
+                <p>${a.excerpt || ''}</p>
+                <div class="queue-actions">
+                    <button class="btn-publish" onclick="publishFromQueue(${i})">Publier</button>
+                    <button class="btn-discard" onclick="removeFromQueue(${i})">Supprimer</button>
+                </div>
+            </div>
+        `).join('');
+
+    // Log
+    const logContainer = document.getElementById('auto-log');
+    const logs = autoConfig.generationLog || [];
+    logContainer.innerHTML = logs.length === 0
+        ? '<span class="log-entry">Aucune activite</span>'
+        : logs.map(l => `
+            <div class="log-entry">
+                <span class="log-time">[${l.time}]</span>${l.message}
+            </div>
+        `).join('');
+
+    // Articles count
+    const countEl = document.getElementById('articles-count');
+    if (countEl) countEl.textContent = appData.articles.length;
+}
+
+function renderNewsletterDashboard() {
+    document.getElementById('nl-enabled').checked = autoConfig.newsletterEnabled;
+    document.getElementById('nl-provider').value = autoConfig.newsletterProvider;
+    document.getElementById('nl-time').value = autoConfig.newsletterSchedule;
+    document.getElementById('nl-frequency').value = autoConfig.newsletterFrequency;
+    document.getElementById('nl-ejs-service').value = autoConfig.emailjsServiceId || '';
+    document.getElementById('nl-ejs-template').value = autoConfig.emailjsTemplateId || '';
+    document.getElementById('nl-ejs-pubkey').value = autoConfig.emailjsPublicKey || '';
+    document.getElementById('nl-webhook-url').value = autoConfig.webhookUrl || '';
+
+    // Show/hide provider config
+    document.getElementById('nl-emailjs-config').style.display =
+        autoConfig.newsletterProvider === 'emailjs' ? 'block' : 'none';
+    document.getElementById('nl-webhook-config').style.display =
+        autoConfig.newsletterProvider === 'webhook' ? 'block' : 'none';
+
+    // Subscribers list
+    const subs = appData.subscribers || [];
+    document.getElementById('nl-sub-count').textContent = subs.length;
+    document.getElementById('nl-subscribers-list').innerHTML = subs.length === 0
+        ? '<p style="color:var(--text-muted);font-size:0.8rem;">Aucun abonne</p>'
+        : subs.map((email, i) => `
+            <div class="admin-article-item">
+                <span>${email}</span>
+                <button onclick="removeSubscriber(${i})">x</button>
+            </div>
+        `).join('');
+}
+
+function updateAutoConfig() {
+    autoConfig.aiProvider = document.getElementById('auto-provider').value;
+    autoConfig.apiKey = document.getElementById('auto-apikey').value;
+    autoConfig.autoGenerate = document.getElementById('auto-generate-toggle').checked;
+    autoConfig.autoPublish = document.getElementById('auto-publish-toggle').checked;
+    autoConfig.generateInterval = parseInt(document.getElementById('auto-interval').value) || 6;
+    autoConfig.maxArticlesPerDay = parseInt(document.getElementById('auto-max').value) || 5;
+    saveAutoConfig(autoConfig);
+    startAutomationScheduler();
+    renderAutomationDashboard();
+}
+
+function updateNewsletterConfig() {
+    autoConfig.newsletterEnabled = document.getElementById('nl-enabled').checked;
+    autoConfig.newsletterProvider = document.getElementById('nl-provider').value;
+    autoConfig.newsletterSchedule = document.getElementById('nl-time').value;
+    autoConfig.newsletterFrequency = document.getElementById('nl-frequency').value;
+    autoConfig.emailjsServiceId = document.getElementById('nl-ejs-service').value;
+    autoConfig.emailjsTemplateId = document.getElementById('nl-ejs-template').value;
+    autoConfig.emailjsPublicKey = document.getElementById('nl-ejs-pubkey').value;
+    autoConfig.webhookUrl = document.getElementById('nl-webhook-url').value;
+    saveAutoConfig(autoConfig);
+    startAutomationScheduler();
+    renderNewsletterDashboard();
+    renderAutomationDashboard();
+}
+
+function toggleFeed(index) {
+    autoConfig.feeds[index].enabled = !autoConfig.feeds[index].enabled;
+    saveAutoConfig(autoConfig);
+    renderAutomationDashboard();
+}
+
+function addFeed() {
+    const name = document.getElementById('new-feed-name').value.trim();
+    const url = document.getElementById('new-feed-url').value.trim();
+    if (!name || !url) { showToast('Remplis le nom et l\'URL'); return; }
+    autoConfig.feeds.push({ name, url, enabled: true });
+    saveAutoConfig(autoConfig);
+    document.getElementById('new-feed-name').value = '';
+    document.getElementById('new-feed-url').value = '';
+    renderAutomationDashboard();
+    showToast('Flux ajoute !');
+}
+
+function removeSubscriber(index) {
+    appData.subscribers.splice(index, 1);
+    saveAppData(appData);
+    renderNewsletterDashboard();
+    renderStats();
+}
+
+async function manualRunCycle() {
+    showToast('Cycle d\'automatisation en cours...');
+    await runAutomationCycle();
+    renderAutomationDashboard();
+    render();
+    showToast('Cycle termine !');
+}
+
+async function manualFetchFeeds() {
+    showToast('Test des flux RSS...');
+    const items = await fetchAllFeeds();
+    renderAutomationDashboard();
+    showToast(`${items.length} articles recuperes depuis les flux RSS`);
+}
+
+async function manualSendNewsletter() {
+    showToast('Envoi de la newsletter...');
+    await sendNewsletter();
+    renderNewsletterDashboard();
+    showToast('Newsletter envoyee !');
+}
+
+function exportAllData() {
+    const allData = {
+        content: appData,
+        automation: autoConfig,
+        exportDate: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'aloorss_full_backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Export complet termine');
+}
+
+// Init automation dashboard on first open
+renderAutomationDashboard();
+initAutomation();
 </script>
 </body>
 </html>
