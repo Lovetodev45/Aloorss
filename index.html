@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aloorss - Construis ta richesse</title>
+    <style>
+        :root {
+            --gold: #d4af37;
+            --gold-light: #f5e6a3;
+            --dark: #1a1a2e;
+            --darker: #0f0f1a;
+            --accent: #16213e;
+            --green: #00c853;
+            --red: #ff1744;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--darker);
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--dark), var(--accent));
+            border-bottom: 2px solid var(--gold);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--gold), var(--gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        header p {
+            color: var(--gold-light);
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--dark);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: var(--gold);
+        }
+
+        .card h2 {
+            color: var(--gold);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .big-number {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .positive { color: var(--green); }
+        .negative { color: var(--red); }
+
+        .subtitle {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+
+        /* Compound Interest Calculator */
+        .calculator {
+            background: var(--dark);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .calculator h2 {
+            color: var(--gold);
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--gold-light);
+            font-size: 0.85rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            background: var(--darker);
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--gold), #b8960c);
+            color: var(--darker);
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover { opacity: 0.9; }
+
+        .result-box {
+            background: var(--darker);
+            border: 1px solid var(--gold);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .result-box.visible { display: block; }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .result-row:last-child { border-bottom: none; }
+        .result-label { color: #aaa; }
+        .result-value { font-weight: bold; color: #fff; }
+        .result-value.highlight { color: var(--gold); font-size: 1.3rem; }
+
+        /* Budget Section */
+        .budget-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .budget-section { grid-template-columns: 1fr; }
+        }
+
+        .budget-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .budget-bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin-top: 0.3rem;
+        }
+
+        .budget-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .add-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .add-row input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 6px;
+            background: var(--darker);
+            color: #fff;
+        }
+
+        .add-row input:focus { outline: none; border-color: var(--gold); }
+
+        .btn-small {
+            background: var(--gold);
+            color: var(--darker);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-remove {
+            background: none;
+            border: none;
+            color: var(--red);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0 0.3rem;
+        }
+
+        /* Tips Section */
+        .tips {
+            background: var(--dark);
+            border: 1px solid rgba(212,175,55,0.2);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .tips h2 {
+            color: var(--gold);
+            margin-bottom: 1rem;
+        }
+
+        .tip-card {
+            background: var(--darker);
+            border-left: 3px solid var(--gold);
+            padding: 1rem 1.2rem;
+            margin-bottom: 0.8rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .tip-card strong {
+            color: var(--gold-light);
+        }
+
+        .progress-ring {
+            width: 80px;
+            height: 80px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: #555;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>ALOORSS</h1>
+        <p>Ton tableau de bord pour construire ta richesse</p>
+    </div>
+    <div style="text-align: right;">
+        <div style="color: var(--gold-light); font-size: 0.85rem;" id="current-date"></div>
+    </div>
+</header>
+
+<div class="container">
+
+    <!-- Dashboard Cards -->
+    <div class="dashboard">
+        <div class="card">
+            <h2>Patrimoine Net</h2>
+            <div class="big-number" id="net-worth">0 &euro;</div>
+            <div class="subtitle">Actifs - Dettes</div>
+        </div>
+        <div class="card">
+            <h2>Taux d'epargne</h2>
+            <div class="big-number" id="savings-rate">0%</div>
+            <div class="subtitle">Epargne / Revenus</div>
+        </div>
+        <div class="card">
+            <h2>Objectif liberte financiere</h2>
+            <div class="big-number" id="fire-number">0 &euro;</div>
+            <div class="subtitle">25x tes depenses annuelles</div>
+        </div>
+        <div class="card">
+            <h2>Progression</h2>
+            <div class="big-number" id="fire-progress">0%</div>
+            <div class="subtitle" id="fire-years">Calcule ton plan ci-dessous</div>
+        </div>
+    </div>
+
+    <!-- Budget -->
+    <div class="budget-section">
+        <div class="card">
+            <h2>Revenus mensuels</h2>
+            <div id="income-list"></div>
+            <div class="add-row">
+                <input type="text" id="income-name" placeholder="Source (ex: Salaire)">
+                <input type="number" id="income-amount" placeholder="Montant">
+                <button class="btn-small" onclick="addIncome()">+</button>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Depenses mensuelles</h2>
+            <div id="expense-list"></div>
+            <div class="add-row">
+                <input type="text" id="expense-name" placeholder="Poste (ex: Loyer)">
+                <input type="number" id="expense-amount" placeholder="Montant">
+                <button class="btn-small" onclick="addExpense()">+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compound Interest Calculator -->
+    <div class="calculator">
+        <h2>Calculateur d'interets composes</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Capital initial (&euro;)</label>
+                <input type="number" id="initial" value="1000">
+            </div>
+            <div class="form-group">
+                <label>Apport mensuel (&euro;)</label>
+                <input type="number" id="monthly" value="200">
+            </div>
+            <div class="form-group">
+                <label>Rendement annuel (%)</label>
+                <input type="number" id="rate" value="8" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Duree (annees)</label>
+                <input type="number" id="years" value="20">
+            </div>
+        </div>
+        <button class="btn" onclick="calculate()">Calculer ma richesse future</button>
+
+        <div class="result-box" id="results">
+            <div class="result-row">
+                <span class="result-label">Total investi</span>
+                <span class="result-value" id="total-invested"></span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Interets generes</span>
+                <span class="result-value positive" id="total-interest"></span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Valeur finale</span>
+                <span class="result-value highlight" id="final-value"></span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Multiplicateur</span>
+                <span class="result-value positive" id="multiplier"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wealth Tips -->
+    <div class="tips">
+        <h2>Les 7 regles d'or pour devenir riche</h2>
+        <div class="tip-card">
+            <strong>1. Paye-toi en premier.</strong> Epargne au moins 20% de tes revenus des que tu es paye, avant toute depense.
+        </div>
+        <div class="tip-card">
+            <strong>2. Interets composes = magie.</strong> 200&euro;/mois a 8% pendant 30 ans = <strong>298 071&euro;</strong> (pour 72 000&euro; investis).
+        </div>
+        <div class="tip-card">
+            <strong>3. Evite les dettes de consommation.</strong> Les dettes a taux eleve (credit conso, decouvert) detruisent ta richesse.
+        </div>
+        <div class="tip-card">
+            <strong>4. Investis, ne specule pas.</strong> ETF diversifies (ex: MSCI World) > actions individuelles > crypto pour la majorite des gens.
+        </div>
+        <div class="tip-card">
+            <strong>5. Augmente tes revenus.</strong> Negocie ton salaire, developpe des competences, cree des revenus complementaires.
+        </div>
+        <div class="tip-card">
+            <strong>6. La regle des 4%.</strong> Tu es financierement libre quand ton patrimoine = 25x tes depenses annuelles.
+        </div>
+        <div class="tip-card">
+            <strong>7. Le temps est ton allie.</strong> Commence maintenant. Meme 50&euro;/mois, c'est mieux que rien. La constance bat le timing.
+        </div>
+    </div>
+
+</div>
+
+<footer>ALOORSS &mdash; Prends le controle de tes finances. Commence aujourd'hui.</footer>
+
+<script>
+    // Date
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('fr-FR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    // Budget data
+    let incomes = [];
+    let expenses = [];
+
+    function loadData() {
+        try {
+            incomes = JSON.parse(localStorage.getItem('aloorss_incomes')) || [];
+            expenses = JSON.parse(localStorage.getItem('aloorss_expenses')) || [];
+        } catch(e) {
+            incomes = [];
+            expenses = [];
+        }
+    }
+
+    function saveData() {
+        localStorage.setItem('aloorss_incomes', JSON.stringify(incomes));
+        localStorage.setItem('aloorss_expenses', JSON.stringify(expenses));
+    }
+
+    function formatMoney(n) {
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
+    }
+
+    function renderBudget() {
+        const incomeList = document.getElementById('income-list');
+        const expenseList = document.getElementById('expense-list');
+        const totalIncome = incomes.reduce((s, i) => s + i.amount, 0);
+        const totalExpense = expenses.reduce((s, e) => s + e.amount, 0);
+
+        incomeList.innerHTML = incomes.map((item, idx) => `
+            <div class="budget-item">
+                <span>${item.name}</span>
+                <span>
+                    <span class="positive">${formatMoney(item.amount)}</span>
+                    <button class="btn-remove" onclick="removeIncome(${idx})">x</button>
+                </span>
+            </div>
+        `).join('') + (incomes.length ? `
+            <div class="budget-item" style="border-top: 1px solid var(--gold); margin-top: 0.5rem; padding-top: 0.5rem;">
+                <strong>Total</strong>
+                <strong class="positive">${formatMoney(totalIncome)}</strong>
+            </div>` : '<p style="color:#555;font-size:0.9rem;">Ajoute tes sources de revenus</p>');
+
+        expenseList.innerHTML = expenses.map((item, idx) => {
+            const pct = totalIncome > 0 ? (item.amount / totalIncome * 100) : 0;
+            const color = pct > 30 ? 'var(--red)' : pct > 15 ? 'orange' : 'var(--green)';
+            return `
+                <div class="budget-item">
+                    <div style="flex:1">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>${item.name}</span>
+                            <span>
+                                <span class="negative">${formatMoney(item.amount)}</span>
+                                <button class="btn-remove" onclick="removeExpense(${idx})">x</button>
+                            </span>
+                        </div>
+                        <div class="budget-bar-container">
+                            <div class="budget-bar" style="width:${Math.min(pct,100)}%;background:${color};"></div>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('') + (expenses.length ? `
+            <div class="budget-item" style="border-top: 1px solid var(--gold); margin-top: 0.5rem; padding-top: 0.5rem;">
+                <strong>Total</strong>
+                <strong class="negative">${formatMoney(totalExpense)}</strong>
+            </div>` : '<p style="color:#555;font-size:0.9rem;">Ajoute tes postes de depenses</p>');
+
+        // Update dashboard
+        const savings = totalIncome - totalExpense;
+        const savingsRate = totalIncome > 0 ? (savings / totalIncome * 100) : 0;
+        const fireNumber = totalExpense * 12 * 25;
+
+        document.getElementById('net-worth').innerHTML = formatMoney(savings * 12) + '/an';
+        document.getElementById('net-worth').className = 'big-number ' + (savings >= 0 ? 'positive' : 'negative');
+
+        document.getElementById('savings-rate').textContent = savingsRate.toFixed(1) + '%';
+        document.getElementById('savings-rate').className = 'big-number ' + (savingsRate >= 20 ? 'positive' : savingsRate >= 0 ? '' : 'negative');
+
+        document.getElementById('fire-number').innerHTML = formatMoney(fireNumber);
+
+        // Update monthly contribution in calculator
+        if (savings > 0) {
+            document.getElementById('monthly').value = Math.round(savings);
+        }
+
+        updateFireProgress(savings, fireNumber);
+    }
+
+    function updateFireProgress(monthlySavings, fireNumber) {
+        if (monthlySavings <= 0 || fireNumber <= 0) {
+            document.getElementById('fire-progress').textContent = '0%';
+            document.getElementById('fire-years').textContent = 'Augmente tes revenus ou reduis tes depenses';
+            return;
+        }
+        const rate = 0.08;
+        let accumulated = 0;
+        let months = 0;
+        while (accumulated < fireNumber && months < 1200) {
+            accumulated = accumulated * (1 + rate / 12) + monthlySavings;
+            months++;
+        }
+        const years = (months / 12).toFixed(1);
+        const currentProgress = Math.min((monthlySavings * 12 / fireNumber * 100 * 10), 100);
+        document.getElementById('fire-progress').textContent = currentProgress.toFixed(1) + '%';
+        document.getElementById('fire-years').textContent = `Liberte financiere dans ~${years} ans (a 8%/an)`;
+    }
+
+    function addIncome() {
+        const name = document.getElementById('income-name').value.trim();
+        const amount = parseFloat(document.getElementById('income-amount').value);
+        if (!name || !amount || amount <= 0) return;
+        incomes.push({ name, amount });
+        document.getElementById('income-name').value = '';
+        document.getElementById('income-amount').value = '';
+        saveData();
+        renderBudget();
+    }
+
+    function addExpense() {
+        const name = document.getElementById('expense-name').value.trim();
+        const amount = parseFloat(document.getElementById('expense-amount').value);
+        if (!name || !amount || amount <= 0) return;
+        expenses.push({ name, amount });
+        document.getElementById('expense-name').value = '';
+        document.getElementById('expense-amount').value = '';
+        saveData();
+        renderBudget();
+    }
+
+    function removeIncome(idx) { incomes.splice(idx, 1); saveData(); renderBudget(); }
+    function removeExpense(idx) { expenses.splice(idx, 1); saveData(); renderBudget(); }
+
+    // Compound Interest Calculator
+    function calculate() {
+        const initial = parseFloat(document.getElementById('initial').value) || 0;
+        const monthly = parseFloat(document.getElementById('monthly').value) || 0;
+        const annualRate = parseFloat(document.getElementById('rate').value) / 100 || 0;
+        const years = parseInt(document.getElementById('years').value) || 0;
+
+        const monthlyRate = annualRate / 12;
+        const totalMonths = years * 12;
+        const totalInvested = initial + (monthly * totalMonths);
+
+        let balance = initial;
+        for (let i = 0; i < totalMonths; i++) {
+            balance = balance * (1 + monthlyRate) + monthly;
+        }
+
+        const interest = balance - totalInvested;
+        const multiplier = totalInvested > 0 ? (balance / totalInvested) : 0;
+
+        document.getElementById('total-invested').textContent = formatMoney(totalInvested);
+        document.getElementById('total-interest').textContent = '+' + formatMoney(interest);
+        document.getElementById('final-value').textContent = formatMoney(balance);
+        document.getElementById('multiplier').textContent = 'x' + multiplier.toFixed(2);
+        document.getElementById('results').classList.add('visible');
+    }
+
+    // Init
+    loadData();
+    renderBudget();
+</script>
+
+</body>
+</html>
