@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ÆON — La Simulation de l'Humanité</title>
+<meta name="description" content="Guidez l'humanité de l'Âge de Pierre à la Transcendance spatiale. Une épopée incrémentale jouable dans votre navigateur.">
+<meta property="og:title" content="ÆON — La Simulation de l'Humanité">
+<meta property="og:description" content="De la première étincelle aux étoiles. Faites avancer l'espèce humaine à travers les âges.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070710; --bg2:#0c0c1a; --surface:#121225; --surface-2:#1a1a30;
+  --border:#2a2a45; --border-glow:#3d3d6b;
+  --text:#e8e8f5; --muted:#8b8bb0; --dim:#5a5a7a;
+  --gold:#f5c542; --gold-glow:rgba(245,197,66,.18);
+  --accent:#7c6cff; --accent-light:#a99bff; --accent-glow:rgba(124,108,255,.2);
+  --know:#8b9bff; --energy:#ffb454; --culture:#ff6fb5; --pop:#5ee0a0;
+  --green:#34d399; --red:#fb6f6f;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Inter',-apple-system,system-ui,sans-serif;
+  background:radial-gradient(ellipse at top,#12122a 0%,var(--bg) 55%);
+  color:var(--text); line-height:1.5; overflow-x:hidden;
+  -webkit-font-smoothing:antialiased; min-height:100%;
+}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-glow)}
+
+/* starfield */
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.55}
+
+.wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 16px 80px}
+
+/* ===== Header ===== */
+header{text-align:center;padding:34px 0 18px}
+.logo{
+  font-family:'Cinzel',serif;font-weight:800;font-size:clamp(38px,7vw,72px);
+  letter-spacing:.18em;line-height:1;
+  background:linear-gradient(120deg,var(--gold) 0%,#fff7d6 30%,var(--accent-light) 70%,var(--accent) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 24px var(--accent-glow));
+}
+.tagline{color:var(--muted);font-size:14px;letter-spacing:.32em;text-transform:uppercase;margin-top:8px}
+
+/* ===== Age banner ===== */
+.age-banner{
+  margin:22px auto 6px;max-width:720px;text-align:center;
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--border);border-radius:18px;padding:18px 22px;
+  box-shadow:0 0 40px var(--accent-glow),inset 0 1px 0 rgba(255,255,255,.04);
+}
+.age-icon{font-size:42px;line-height:1}
+.age-name{font-family:'Cinzel',serif;font-size:24px;font-weight:700;margin-top:4px;letter-spacing:.04em}
+.age-tag{color:var(--muted);font-size:13px;margin-top:4px;font-style:italic}
+.age-progress{margin-top:14px}
+.bar{height:10px;background:var(--bg2);border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));transition:width .3s ease;border-radius:8px;box-shadow:0 0 12px var(--accent-glow)}
+.bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
+.advance-btn{
+  margin-top:14px;width:100%;padding:12px;border:none;border-radius:12px;cursor:pointer;
+  font-family:'Cinzel',serif;font-weight:700;font-size:16px;letter-spacing:.08em;
+  background:linear-gradient(120deg,var(--gold),#ffe9a3);color:#2a1f00;
+  box-shadow:0 0 24px var(--gold-glow);transition:transform .12s,filter .2s;
+}
+.advance-btn:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.08)}
+.advance-btn:disabled{opacity:.4;cursor:not-allowed;background:var(--surface-2);color:var(--dim);box-shadow:none}
+
+/* ===== Resource bar ===== */
+.resources{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0;
+}
+.res{
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--border);border-radius:14px;padding:12px 14px;
+  display:flex;align-items:center;gap:10px;
+}
+.res-ic{font-size:22px;width:34px;text-align:center}
+.res-meta{min-width:0;flex:1}
+.res-name{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim)}
+.res-val{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+.res-rate{font-size:11px;color:var(--green);font-variant-numeric:tabular-nums}
+.res-rate.zero{color:var(--dim)}
+
+/* ===== Main click ===== */
+.spark-zone{text-align:center;margin:6px 0 22px}
+.spark-btn{
+  position:relative;width:min(340px,80vw);height:140px;border:none;cursor:pointer;border-radius:20px;
+  background:radial-gradient(circle at 50% 40%,rgba(124,108,255,.35),var(--surface) 70%);
+  border:1px solid var(--border-glow);color:var(--text);
+  font-family:'Cinzel',serif;font-weight:700;font-size:18px;letter-spacing:.05em;
+  box-shadow:0 0 40px var(--accent-glow),inset 0 0 30px rgba(124,108,255,.1);
+  transition:transform .07s, box-shadow .2s; overflow:hidden;
+}
+.spark-btn:hover{box-shadow:0 0 60px var(--accent-glow),inset 0 0 40px rgba(124,108,255,.18)}
+.spark-btn:active{transform:scale(.97)}
+.spark-btn small{display:block;font-family:'Inter';font-weight:600;font-size:12px;color:var(--accent-light);margin-top:6px;letter-spacing:.1em}
+.float{position:absolute;pointer-events:none;font-weight:800;color:var(--know);font-size:16px;animation:floatUp 1s ease-out forwards;z-index:5}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+
+/* ===== Tabs ===== */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;justify-content:center}
+.tab{
+  padding:9px 18px;border-radius:11px;border:1px solid var(--border);cursor:pointer;
+  background:var(--surface);color:var(--muted);font-weight:600;font-size:14px;transition:all .15s;
+}
+.tab:hover{color:var(--text);border-color:var(--border-glow)}
+.tab.active{background:linear-gradient(120deg,var(--accent),var(--accent-light));color:#fff;border-color:transparent;box-shadow:0 0 20px var(--accent-glow)}
+.tab .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--gold);color:#2a1f00;font-size:11px;font-weight:800;text-align:center}
+
+.panel{display:none}
+.panel.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ===== Cards grid ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.card{
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--border);border-radius:14px;padding:14px;
+  display:flex;flex-direction:column;gap:8px;transition:border-color .15s,transform .12s;
+}
+.card.affordable{border-color:var(--border-glow)}
+.card.locked{opacity:.5;filter:grayscale(.4)}
+.card.owned-tech{border-color:var(--green);background:linear-gradient(180deg,rgba(52,211,153,.07),var(--surface-2))}
+.card-head{display:flex;align-items:center;gap:10px}
+.card-ic{font-size:26px;width:40px;height:40px;display:grid;place-items:center;background:var(--bg2);border-radius:11px;border:1px solid var(--border)}
+.card-title{font-weight:700;font-size:15px}
+.card-sub{font-size:12px;color:var(--muted)}
+.card-desc{font-size:12.5px;color:var(--muted);line-height:1.45;flex:1}
+.card-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:2px}
+.cost{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.cost.ok{color:var(--green)} .cost.no{color:var(--red)}
+.owned{font-size:13px;color:var(--gold);font-weight:800}
+.buy{
+  padding:8px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;
+  background:var(--accent);color:#fff;transition:filter .15s,transform .1s;white-space:nowrap;
+}
+.buy:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
+.buy:disabled{background:var(--surface-2);color:var(--dim);cursor:not-allowed}
+.tag-pill{font-size:10px;text-transform:uppercase;letter-spacing:.1em;padding:2px 8px;border-radius:20px;background:var(--bg2);color:var(--dim);border:1px solid var(--border)}
+
+/* ===== Stats / transcend ===== */
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.stat-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}
+.stat-row:last-child{border-bottom:none}
+.stat-row b{font-variant-numeric:tabular-nums}
+.transcend-box{text-align:center;background:radial-gradient(ellipse at top,rgba(245,197,66,.1),var(--surface));border:1px solid var(--gold);border-radius:18px;padding:24px}
+.transcend-box h3{font-family:'Cinzel',serif;font-size:22px;color:var(--gold);margin-bottom:8px}
+.transcend-box p{color:var(--muted);font-size:14px;max-width:560px;margin:0 auto 14px}
+.spark-count{font-size:40px;font-weight:900;color:var(--gold);margin:8px 0;text-shadow:0 0 24px var(--gold-glow)}
+.transcend-btn{padding:14px 32px;border:none;border-radius:12px;cursor:pointer;font-family:'Cinzel',serif;font-weight:700;font-size:16px;letter-spacing:.06em;background:linear-gradient(120deg,var(--gold),#ffe9a3);color:#2a1f00;box-shadow:0 0 30px var(--gold-glow);transition:transform .12s}
+.transcend-btn:hover:not(:disabled){transform:translateY(-2px)}
+.transcend-btn:disabled{opacity:.4;cursor:not-allowed;background:var(--surface-2);color:var(--dim);box-shadow:none}
+
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.ghost{padding:10px 18px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--muted);cursor:pointer;font-weight:600;font-size:13px;transition:all .15s}
+.ghost:hover{color:var(--text);border-color:var(--border-glow)}
+.ghost.danger:hover{color:var(--red);border-color:var(--red)}
+
+.section-h{font-family:'Cinzel',serif;font-size:16px;letter-spacing:.06em;color:var(--accent-light);margin:6px 0 12px;text-transform:uppercase}
+
+/* ===== Toast / events ===== */
+#toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:10px;align-items:center;width:min(440px,92vw)}
+.toast{width:100%;background:var(--surface);border:1px solid var(--border-glow);border-radius:12px;padding:12px 16px;box-shadow:0 10px 40px rgba(0,0,0,.5);animation:slideUp .3s ease;font-size:14px}
+.toast b{color:var(--gold)}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+
+/* ===== Event modal ===== */
+#overlay{position:fixed;inset:0;z-index:300;background:rgba(5,5,15,.78);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
+#overlay.show{display:flex}
+.modal{max-width:520px;width:100%;background:linear-gradient(180deg,var(--surface),var(--surface-2));border:1px solid var(--gold);border-radius:18px;padding:26px;box-shadow:0 0 60px var(--gold-glow);animation:fade .3s}
+.modal .ev-ic{font-size:46px;text-align:center}
+.modal h3{font-family:'Cinzel',serif;text-align:center;font-size:22px;margin:8px 0 6px;color:var(--gold)}
+.modal p{color:var(--muted);text-align:center;font-size:14.5px;margin-bottom:18px}
+.modal .choices{display:flex;flex-direction:column;gap:10px}
+.choice{padding:13px 16px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);color:var(--text);cursor:pointer;text-align:left;transition:all .15s;font-size:14px}
+.choice:hover{border-color:var(--gold);background:var(--surface)}
+.choice b{color:var(--accent-light)}
+
+footer{text-align:center;color:var(--dim);font-size:12px;margin-top:40px;line-height:1.8}
+footer a{color:var(--muted)}
+
+@media(max-width:680px){
+  .resources{grid-template-columns:repeat(2,1fr)}
+  .logo{letter-spacing:.1em}
+}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="wrap">
+  <header>
+    <div class="logo">ÆON</div>
+    <div class="tagline">La Simulation de l'Humanité</div>
+  </header>
+
+  <!-- Age banner -->
+  <div class="age-banner">
+    <div class="age-icon" id="ageIcon">🪨</div>
+    <div class="age-name" id="ageName">Âge de Pierre</div>
+    <div class="age-tag" id="ageTag">La première étincelle de conscience.</div>
+    <div class="age-progress">
+      <div class="bar"><div class="bar-fill" id="ageBar" style="width:0%"></div></div>
+      <div class="bar-label"><span id="ageBarLabel">0 / 0 connaissance</span><span id="ageNext"></span></div>
+    </div>
+    <button class="advance-btn" id="advanceBtn" disabled>Faire avancer l'humanité</button>
+  </div>
+
+  <!-- Resources -->
+  <div class="resources" id="resources"></div>
+
+  <!-- Main click -->
+  <div class="spark-zone">
+    <button class="spark-btn" id="sparkBtn">
+      Éveiller l'esprit
+      <small id="sparkSub">+1 connaissance par éveil</small>
+    </button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="build">🏛️ Bâtiments</div>
+    <div class="tab" data-tab="tech">🔬 Découvertes <span class="badge" id="techBadge" style="display:none">0</span></div>
+    <div class="tab" data-tab="stats">📊 Civilisation</div>
+    <div class="tab" data-tab="transcend">✦ Transcendance</div>
+  </div>
+
+  <!-- Panels -->
+  <div class="panel active" id="panel-build"><div class="grid" id="buildGrid"></div></div>
+  <div class="panel" id="panel-tech"><div class="grid" id="techGrid"></div></div>
+
+  <div class="panel" id="panel-stats">
+    <div class="section-h">Bilan de la civilisation</div>
+    <div class="stat-box" id="statBox"></div>
+    <div class="section-h">Sauvegarde</div>
+    <div class="stat-box">
+      <p style="color:var(--muted);font-size:13px">La partie est sauvegardée automatiquement dans ce navigateur. Vous pouvez aussi l'exporter pour la transférer ailleurs.</p>
+      <div class="btn-row">
+        <button class="ghost" id="exportBtn">⬇ Exporter la sauvegarde</button>
+        <button class="ghost" id="importBtn">⬆ Importer</button>
+        <button class="ghost danger" id="resetBtn">⟲ Tout réinitialiser</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-transcend">
+    <div class="transcend-box">
+      <h3>✦ Transcender l'humanité</h3>
+      <p>Quand une civilisation atteint son apogée, elle se dissout pour renaître plus sage. Transcender réinitialise votre progression mais vous accorde des <b style="color:var(--gold)">Étincelles d'Éon</b> — chacune augmente définitivement toute votre production de <b>+3 %</b>.</p>
+      <div>Étincelles si vous transcendez maintenant&nbsp;:</div>
+      <div class="spark-count" id="potentialSparks">0</div>
+      <div style="color:var(--muted);font-size:13px">Étincelles déjà accumulées&nbsp;: <b id="currentSparks" style="color:var(--gold)">0</b> &nbsp;(<span id="sparkBonus">+0 %</span> de production)</div>
+      <div class="btn-row">
+        <button class="transcend-btn" id="transcendBtn" disabled>Transcender</button>
+      </div>
+      <p style="margin-top:14px;font-size:12px">Vous pourrez transcender une fois <b id="transcendReq">1 M</b> de connaissance totale gagnée.</p>
+    </div>
+  </div>
+
+  <footer>
+    ÆON — une épopée incrémentale · de la première étincelle aux étoiles<br>
+    100&nbsp;% hors-ligne · aucune donnée ne quitte votre navigateur
+  </footer>
+</div>
+
+<div id="toasts"></div>
+<div id="overlay"><div class="modal" id="modal"></div></div>
+
+<input type="file" id="fileInput" accept=".json,application/json" style="display:none">
+
+<script>
+"use strict";
+/* ============================================================
+   ÆON — moteur de jeu incrémental
+   ============================================================ */
+
+// ---------- Données : les Âges ----------
+const AGES = [
+  {name:"Âge de Pierre",    icon:"🪨", tag:"La première étincelle de conscience.",        req:0},
+  {name:"Antiquité",        icon:"🏺", tag:"Cités, écriture et premières lois.",           req:1.2e3},
+  {name:"Moyen Âge",        icon:"🏰", tag:"Royaumes, foi et savoir préservé.",            req:2.5e4},
+  {name:"Renaissance",      icon:"🎨", tag:"L'esprit s'ouvre à la science et à l'art.",    req:6e5},
+  {name:"Ère Industrielle", icon:"⚙️", tag:"La vapeur met le monde en mouvement.",         req:1.5e7},
+  {name:"Ère de l'Information",icon:"💾",tag:"Le savoir circule à la vitesse de la lumière.",req:4e8},
+  {name:"Ère de l'IA",      icon:"🤖", tag:"L'intelligence se démultiplie.",               req:1.2e10},
+  {name:"Ère Spatiale",     icon:"🚀", tag:"L'humanité quitte son berceau.",               req:5e11},
+  {name:"Transcendance",    icon:"✦",  tag:"Au-delà de la chair, vers les étoiles.",       req:2.5e13},
+];
+
+// ---------- Données : Bâtiments ----------
+// res: ressource produite | base: coût en connaissance | rate: prod/s par unité | age: âge min d'apparition
+const BUILDINGS = [
+  {id:"feu",     name:"Feu de camp",       icon:"🔥", res:"know",    base:15,    rate:.2,   age:0, desc:"Autour des flammes naissent les premières idées."},
+  {id:"tribu",   name:"Tribu",             icon:"👥", res:"pop",     base:60,    rate:.05,  age:0, desc:"Plus de mains, plus d'esprits. La population multiplie tout."},
+  {id:"champ",   name:"Champ cultivé",     icon:"🌾", res:"know",    base:240,   rate:1,    age:0, desc:"L'agriculture libère du temps pour penser."},
+  {id:"temple",  name:"Temple",            icon:"⛩️", res:"culture", base:900,   rate:.5,   age:1, desc:"La culture donne un sens au monde."},
+  {id:"ecole",   name:"École",             icon:"📜", res:"know",    base:3.2e3, rate:6,    age:1, desc:"Le savoir se transmet et s'accumule."},
+  {id:"moulin",  name:"Moulin",            icon:"🌀", res:"energy",  base:1.1e4, rate:3,    age:2, desc:"Capter le vent et l'eau : l'énergie au service de l'humain."},
+  {id:"cite",    name:"Cité",              icon:"🏙️", res:"pop",     base:4.5e4, rate:.6,   age:2, desc:"Des millions vivent et créent ensemble."},
+  {id:"atelier", name:"Atelier d'artiste", icon:"🖌️", res:"culture", base:1.6e5, rate:14,   age:3, desc:"La Renaissance fait jaillir le génie."},
+  {id:"usine",   name:"Usine à vapeur",    icon:"🏭", res:"energy",  base:9e5,   rate:60,   age:4, desc:"La production de masse change l'échelle de tout."},
+  {id:"labo",    name:"Laboratoire",       icon:"⚗️", res:"know",    base:5e6,   rate:420,  age:4, desc:"La méthode scientifique industrialise la découverte."},
+  {id:"serveur", name:"Centre de données", icon:"🖥️", res:"know",    base:8e7,   rate:5200, age:5, desc:"Le savoir mondial, accessible en un instant."},
+  {id:"reseau",  name:"Réseau social",     icon:"🌐", res:"culture", base:3e8,   rate:9000, age:5, desc:"La culture devient virale et planétaire."},
+  {id:"ia",      name:"Intelligence Art.", icon:"🧠", res:"know",    base:6e9,   rate:1.4e5,age:6, desc:"Une intelligence qui s'améliore elle-même."},
+  {id:"fusion",  name:"Réacteur à fusion", icon:"☀️", res:"energy",  base:4e10,  rate:9e5,  age:6, desc:"De l'énergie quasi illimitée, comme une étoile en cage."},
+  {id:"colonie", name:"Colonie orbitale",  icon:"🛰️", res:"pop",     base:2.2e11,rate:340,  age:7, desc:"L'humanité essaime parmi les étoiles."},
+  {id:"dyson",   name:"Sphère de Dyson",   icon:"🌟", res:"energy",  base:1.5e12,rate:1.6e7,age:7, desc:"Capturer la puissance entière d'un soleil."},
+  {id:"esprit",  name:"Esprit-ruche",      icon:"✦",  res:"know",    base:9e12,  rate:6e7,  age:8, desc:"Des milliards de consciences, une seule pensée."},
+];
+
+// ---------- Données : Découvertes (technologies) ----------
+// cost en {know, culture}. effect: fonction renvoyant un multiplicateur appliqué.
+// kind: "global" | ressource | building id
+const TECHS = [
+  {id:"roue",     name:"La Roue",            icon:"🛞", age:0, cost:{know:200},                 kind:"global",  mult:1.15, desc:"+15 % à toute la production."},
+  {id:"ecriture", name:"L'Écriture",         icon:"✍️", age:1, cost:{know:2000},                kind:"know",    mult:2,    desc:"×2 production de connaissance."},
+  {id:"loi",      name:"Code de lois",       icon:"⚖️", age:1, cost:{know:6000,culture:80},     kind:"pop",     mult:2,    desc:"×2 croissance de la population."},
+  {id:"imprimerie",name:"L'Imprimerie",      icon:"📚", age:3, cost:{know:9e4,culture:600},     kind:"know",    mult:2.5,  desc:"×2,5 production de connaissance."},
+  {id:"perspective",name:"La Perspective",   icon:"🖼️", age:3, cost:{know:2.4e5},               kind:"culture", mult:3,    desc:"×3 production de culture."},
+  {id:"vapeur",   name:"Machine à vapeur",   icon:"♨️", age:4, cost:{know:1.4e6},               kind:"energy",  mult:3,    desc:"×3 production d'énergie."},
+  {id:"electricite",name:"L'Électricité",    icon:"⚡", age:4, cost:{know:8e6,culture:5e3},     kind:"global",  mult:1.4,  desc:"+40 % à toute la production."},
+  {id:"internet", name:"L'Internet",         icon:"🕸️", age:5, cost:{know:1.5e8},               kind:"know",    mult:3,    desc:"×3 production de connaissance."},
+  {id:"smartphone",name:"Le Smartphone",     icon:"📱", age:5, cost:{know:5e8,culture:2e6},     kind:"culture", mult:4,    desc:"×4 production de culture."},
+  {id:"renouvelable",name:"Énergies vertes", icon:"🍃", age:5, cost:{know:9e8},                 kind:"energy",  mult:4,    desc:"×4 production d'énergie."},
+  {id:"ml",       name:"Apprentissage prof.",icon:"🧬", age:6, cost:{know:1.2e10},              kind:"global",  mult:1.8,  desc:"+80 % à toute la production."},
+  {id:"agi",      name:"Intelligence générale",icon:"🌌",age:6, cost:{know:8e10,culture:1e9},   kind:"know",    mult:5,    desc:"×5 production de connaissance."},
+  {id:"antimatiere",name:"Antimatière",      icon:"💥", age:7, cost:{know:6e11},                kind:"energy",  mult:6,    desc:"×6 production d'énergie."},
+  {id:"terraform",name:"Terraformation",     icon:"🪐", age:7, cost:{know:2e12,culture:5e10},   kind:"pop",     mult:5,    desc:"×5 croissance de la population."},
+  {id:"singularite",name:"La Singularité",   icon:"♾️", age:8, cost:{know:2e13,culture:1e12},   kind:"global",  mult:3,    desc:"×3 à TOUTE la production. Le saut final."},
+];
+
+const RES_META = {
+  know:    {name:"Connaissance", icon:"🧠", color:"--know"},
+  energy:  {name:"Énergie",      icon:"⚡", color:"--energy"},
+  culture: {name:"Culture",      icon:"✨", color:"--culture"},
+  pop:     {name:"Population",   icon:"👥", color:"--pop"},
+};
+
+// ---------- État ----------
+const SAVE_KEY = "aeon_save_v1";
+let G = newGame();
+
+function newGame(){
+  return {
+    res:{know:0, energy:0, culture:0, pop:0},
+    totalKnow:0,          // connaissance totale gagnée (pour les âges & prestige)
+    buildings:{},         // id -> count
+    techs:{},             // id -> true
+    age:0,
+    sparks:0,             // étincelles de prestige
+    clickPower:1,
+    started:Date.now(),
+    lastTick:Date.now(),
+    lastEvent:Date.now(),
+    eventBoost:1,         // multiplicateur temporaire d'évènement
+    eventBoostUntil:0,
+  };
+}
+
+// ---------- Helpers ----------
+function fmt(n){
+  if(n===Infinity) return "∞";
+  if(n<1000) return (n%1===0? n.toString() : n.toFixed(1));
+  const units=["K","M","Md","Bn","Bd","T","Qa","Qi","Sx","Sp"];
+  let u=-1; let x=n;
+  while(x>=1000 && u<units.length-1){x/=1000;u++;}
+  return x.toFixed(x<10?2:x<100?1:0)+" "+units[u];
+}
+function getCount(id){return G.buildings[id]||0;}
+function buildingCost(b){return Math.ceil(b.base * Math.pow(1.15, getCount(b.id)));}
+
+// multiplicateurs issus des découvertes
+function techMult(kind){
+  let m=1;
+  for(const t of TECHS){ if(G.techs[t.id] && t.kind===kind) m*=t.mult; }
+  return m;
+}
+function sparkMult(){ return 1 + G.sparks*0.03; }
+function popMult(){ return 1 + Math.log10(1+G.res.pop)*0.15; } // population dope la prod globale
+function eventMult(){ return Date.now()<G.eventBoostUntil ? G.eventBoost : 1; }
+function globalMult(){ return techMult("global") * sparkMult() * popMult() * eventMult(); }
+
+// production par seconde d'une ressource (hors clic)
+function rateOf(resKey){
+  let r=0;
+  for(const b of BUILDINGS){
+    if(b.res===resKey) r += getCount(b.id)*b.rate;
+  }
+  // multiplicateurs : global + spécifique ressource. Population n'est pas dopée par popMult (sinon boucle).
+  if(resKey==="pop"){
+    return r * techMult("pop") * sparkMult() * eventMult();
+  }
+  return r * globalMult() * techMult(resKey);
+}
+function clickValue(){ return G.clickPower * globalMult() * techMult("know"); }
+
+// ---------- Boucle ----------
+let lastRender=0;
+function loop(now){
+  const dt = Math.min((now - (G._raf||now))/1000, 1); // s, borné
+  G._raf = now;
+  // production
+  const dk = rateOf("know")*dt;
+  G.res.know += dk;  G.totalKnow += dk;
+  G.res.energy += rateOf("energy")*dt;
+  G.res.culture += rateOf("culture")*dt;
+  G.res.pop += rateOf("pop")*dt;
+
+  // évènement aléatoire toutes ~75-140s
+  if(Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
+    triggerEvent(); G.lastEvent=Date.now();
+  }
+
+  if(now-lastRender>120){ render(); lastRender=now; }
+  requestAnimationFrame(loop);
+}
+
+// ---------- Rendu ----------
+function el(id){return document.getElementById(id);}
+
+function render(){
+  // ressources
+  const rc = el("resources");
+  if(rc.children.length!==4){ rc.innerHTML=""; for(const k in RES_META){
+    const m=RES_META[k];
+    rc.insertAdjacentHTML("beforeend",
+      `<div class="res"><div class="res-ic">${m.icon}</div><div class="res-meta">
+       <div class="res-name">${m.name}</div>
+       <div class="res-val" id="rv-${k}">0</div>
+       <div class="res-rate" id="rr-${k}">+0 /s</div></div></div>`);
+  }}
+  for(const k in RES_META){
+    el("rv-"+k).textContent = fmt(G.res[k]);
+    const rate=rateOf(k);
+    const e=el("rr-"+k);
+    e.textContent = "+"+fmt(rate)+" /s";
+    e.classList.toggle("zero", rate<=0);
+  }
+
+  // âge
+  const age=AGES[G.age], next=AGES[G.age+1];
+  el("ageIcon").textContent=age.icon;
+  el("ageName").textContent=age.name;
+  el("ageTag").textContent=age.tag;
+  const ab=el("advanceBtn");
+  if(next){
+    const cur=Math.min(G.totalKnow, next.req);
+    const pct=Math.min(100, G.totalKnow/next.req*100);
+    el("ageBar").style.width=pct+"%";
+    el("ageBarLabel").textContent=fmt(cur)+" / "+fmt(next.req)+" connaissance";
+    el("ageNext").textContent="→ "+next.name;
+    const ok=G.totalKnow>=next.req;
+    ab.disabled=!ok;
+    ab.textContent = ok ? `Entrer dans : ${next.name}` : "Faire avancer l'humanité";
+  } else {
+    el("ageBar").style.width="100%";
+    el("ageBarLabel").textContent="Apogée de la civilisation atteinte";
+    el("ageNext").textContent="";
+    ab.disabled=true; ab.textContent="L'humanité a atteint son sommet";
+  }
+
+  el("sparkSub").textContent = "+"+fmt(clickValue())+" connaissance par éveil";
+
+  renderBuild(); renderTech(); renderStats(); renderTranscend();
+}
+
+function renderBuild(){
+  const grid=el("buildGrid");
+  let html="";
+  for(const b of BUILDINGS){
+    const unlocked = G.age>=b.age;
+    if(!unlocked && getCount(b.id)===0){
+      // montrer un aperçu verrouillé seulement pour le prochain âge
+      if(b.age>G.age+1) continue;
+      html+=`<div class="card locked"><div class="card-head">
+        <div class="card-ic">🔒</div><div><div class="card-title">???</div>
+        <div class="card-sub">Débloqué à l'${AGES[b.age].name}</div></div></div></div>`;
+      continue;
+    }
+    const cost=buildingCost(b);
+    const can=G.res.know>=cost;
+    const m=RES_META[b.res];
+    const perSec=b.rate * (b.res==="pop"? techMult("pop")*sparkMult() : globalMult()*techMult(b.res));
+    html+=`<div class="card ${can?'affordable':''}">
+      <div class="card-head">
+        <div class="card-ic">${b.icon}</div>
+        <div style="flex:1">
+          <div class="card-title">${b.name} <span class="owned">×${getCount(b.id)}</span></div>
+          <div class="card-sub">+${fmt(b.rate)} ${m.icon} ${m.name.toLowerCase()} / unité · réel +${fmt(perSec)}/s</div>
+        </div>
+      </div>
+      <div class="card-desc">${b.desc}</div>
+      <div class="card-foot">
+        <span class="cost ${can?'ok':'no'}">🧠 ${fmt(cost)}</span>
+        <button class="buy" data-buy="${b.id}" ${can?'':'disabled'}>Construire</button>
+      </div></div>`;
+  }
+  grid.innerHTML=html;
+}
+
+function renderTech(){
+  const grid=el("techGrid");
+  let html=""; let avail=0;
+  for(const t of TECHS){
+    const owned=!!G.techs[t.id];
+    const unlocked=G.age>=t.age;
+    if(!unlocked && !owned){
+      if(t.age>G.age+1) continue;
+      html+=`<div class="card locked"><div class="card-head"><div class="card-ic">🔒</div>
+        <div><div class="card-title">???</div><div class="card-sub">Recherche de l'${AGES[t.age].name}</div></div></div></div>`;
+      continue;
+    }
+    const ck=t.cost.know||0, cc=t.cost.culture||0;
+    const can = !owned && G.res.know>=ck && G.res.culture>=cc;
+    if(can) avail++;
+    const costStr = (ck?`🧠 ${fmt(ck)} `:"") + (cc?`✨ ${fmt(cc)}`:"");
+    html+=`<div class="card ${owned?'owned-tech':can?'affordable':''}">
+      <div class="card-head"><div class="card-ic">${t.icon}</div>
+        <div style="flex:1"><div class="card-title">${t.name}</div>
+        <div class="card-sub">${AGES[t.age].name}</div></div>
+        ${owned?'<span class="tag-pill" style="color:var(--green);border-color:var(--green)">acquis</span>':''}</div>
+      <div class="card-desc">${t.desc}</div>
+      ${owned?'':`<div class="card-foot"><span class="cost ${can?'ok':'no'}">${costStr}</span>
+        <button class="buy" data-tech="${t.id}" ${can?'':'disabled'}>Découvrir</button></div>`}
+    </div>`;
+  }
+  grid.innerHTML=html;
+  const badge=el("techBadge");
+  badge.style.display = avail>0?"inline-block":"none";
+  badge.textContent=avail;
+}
+
+function renderStats(){
+  const owned=Object.values(G.buildings).reduce((a,b)=>a+b,0);
+  const techCount=Object.keys(G.techs).length;
+  const play=Math.floor((Date.now()-G.started)/1000);
+  const h=Math.floor(play/3600), mn=Math.floor(play%3600/60);
+  el("statBox").innerHTML=`
+    <div class="stat-row"><span>Âge actuel</span><b>${AGES[G.age].icon} ${AGES[G.age].name}</b></div>
+    <div class="stat-row"><span>Connaissance totale gagnée</span><b>${fmt(G.totalKnow)}</b></div>
+    <div class="stat-row"><span>Population</span><b>${fmt(G.res.pop)}</b></div>
+    <div class="stat-row"><span>Bonus population</span><b>+${((popMult()-1)*100).toFixed(0)} %</b></div>
+    <div class="stat-row"><span>Bâtiments construits</span><b>${owned}</b></div>
+    <div class="stat-row"><span>Découvertes</span><b>${techCount} / ${TECHS.length}</b></div>
+    <div class="stat-row"><span>Étincelles d'Éon</span><b style="color:var(--gold)">${G.sparks} (+${((sparkMult()-1)*100).toFixed(0)} %)</b></div>
+    <div class="stat-row"><span>Multiplicateur global</span><b>×${globalMult().toFixed(2)}</b></div>
+    <div class="stat-row"><span>Temps de jeu</span><b>${h}h ${mn}m</b></div>`;
+}
+
+function potentialSparks(){
+  // racine cubique de (totalKnow / seuil) — courbe douce
+  const REQ=1e6;
+  if(G.totalKnow<REQ) return 0;
+  return Math.floor(Math.pow(G.totalKnow/REQ, 1/2.2));
+}
+function renderTranscend(){
+  const pot=potentialSparks();
+  el("potentialSparks").textContent=pot;
+  el("currentSparks").textContent=G.sparks;
+  el("sparkBonus").textContent="+"+(G.sparks*3)+" %";
+  el("transcendReq").textContent=fmt(1e6);
+  const btn=el("transcendBtn");
+  const can = pot>G.sparks;
+  btn.disabled=!can;
+  btn.textContent = pot>0 ? `Transcender → gagner ${pot-G.sparks} étincelle(s)` : "Transcender";
+}
+
+// ---------- Actions ----------
+function buyBuilding(id){
+  const b=BUILDINGS.find(x=>x.id===id); if(!b) return;
+  const cost=buildingCost(b);
+  if(G.res.know<cost) return;
+  G.res.know-=cost;
+  G.buildings[id]=getCount(id)+1;
+  render();
+}
+function buyTech(id){
+  const t=TECHS.find(x=>x.id===id); if(!t||G.techs[id]) return;
+  const ck=t.cost.know||0, cc=t.cost.culture||0;
+  if(G.res.know<ck||G.res.culture<cc) return;
+  G.res.know-=ck; G.res.culture-=cc;
+  G.techs[id]=true;
+  toast(`🔬 Découverte : <b>${t.name}</b> — ${t.desc}`);
+  render();
+}
+function advanceAge(){
+  const next=AGES[G.age+1]; if(!next||G.totalKnow<next.req) return;
+  G.age++;
+  toast(`${next.icon} L'humanité entre dans l'<b>${next.name}</b>.`);
+  flashAdvance();
+  render();
+}
+function transcend(){
+  const pot=potentialSparks();
+  if(pot<=G.sparks) return;
+  showModal({
+    icon:"✦", title:"Transcender l'humanité ?",
+    text:`Toute votre civilisation actuelle sera dissoute. Vous conserverez <b>${pot}</b> Étincelles d'Éon (soit +${pot*3} % de production permanente) et recommencerez à l'Âge de Pierre, plus puissant que jamais.`,
+    choices:[
+      {label:"<b>Oui</b>, transcender et renaître", fn:()=>{
+        const keepSparks=pot;
+        G=newGame(); G.sparks=keepSparks;
+        toast(`✦ Renaissance. Vous portez désormais <b>${keepSparks}</b> étincelle(s).`);
+        render(); save();
+      }},
+      {label:"Pas encore", fn:()=>{}},
+    ]
+  });
+}
+
+// ---------- Évènements ----------
+const EVENTS=[
+  {icon:"💡", title:"Éclair de génie", text:"Un esprit brillant émerge. Comment l'employer ?",
+   choices:[
+    {label:"<b>Recherche</b> : ×3 connaissance pendant 30 s", fn:()=>boost(3,30)},
+    {label:"<b>Don immédiat</b> : gagner 30 s de connaissance", fn:()=>{G.res.know+=rateOf("know")*30; G.totalKnow+=rateOf("know")*30;}},
+  ]},
+  {icon:"🎉", title:"Âge d'or culturel", text:"Les arts fleurissent à travers la civilisation.",
+   choices:[
+    {label:"<b>Célébrer</b> : ×4 culture pendant 25 s", fn:()=>boost(4,25)},
+    {label:"<b>Stocker</b> : +20 s de culture maintenant", fn:()=>{G.res.culture+=rateOf("culture")*20;}},
+  ]},
+  {icon:"⚡", title:"Boom démographique", text:"La population explose dans les cités.",
+   choices:[
+    {label:"<b>Accueillir</b> : +25 s de population", fn:()=>{G.res.pop+=rateOf("pop")*25 + 10;}},
+    {label:"<b>Mobiliser</b> : ×2,5 toute production pendant 20 s", fn:()=>boost(2.5,20)},
+  ]},
+  {icon:"🌟", title:"Découverte fortuite", text:"Un trésor de savoir oublié refait surface.",
+   choices:[
+    {label:"<b>Étudier</b> : +60 s de connaissance", fn:()=>{const g=rateOf("know")*60; G.res.know+=g; G.totalKnow+=g;}},
+    {label:"<b>Inspiration</b> : ×3 tout pendant 18 s", fn:()=>boost(3,18)},
+  ]},
+];
+function boost(mult,sec){ G.eventBoost=mult; G.eventBoostUntil=Date.now()+sec*1000;
+  toast(`Bonus actif : <b>×${mult}</b> pendant ${sec} s !`); }
+function triggerEvent(){
+  const e=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  showModal(e);
+}
+
+// ---------- Modal ----------
+function showModal(cfg){
+  const m=el("modal");
+  m.innerHTML=`<div class="ev-ic">${cfg.icon}</div><h3>${cfg.title}</h3><p>${cfg.text}</p>
+    <div class="choices"></div>`;
+  const cont=m.querySelector(".choices");
+  cfg.choices.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="choice"; b.innerHTML=c.label;
+    b.onclick=()=>{ c.fn(); closeModal(); render(); };
+    cont.appendChild(b);
+  });
+  el("overlay").classList.add("show");
+}
+function closeModal(){ el("overlay").classList.remove("show"); }
+
+// ---------- Toasts ----------
+function toast(html, ms=4200){
+  const t=document.createElement("div");
+  t.className="toast"; t.innerHTML=html;
+  el("toasts").appendChild(t);
+  setTimeout(()=>{ t.style.transition="opacity .4s,transform .4s"; t.style.opacity="0"; t.style.transform="translateY(10px)";
+    setTimeout(()=>t.remove(),400); }, ms);
+}
+
+// ---------- Clic ----------
+function doSpark(e){
+  const v=clickValue();
+  G.res.know+=v; G.totalKnow+=v;
+  // animation flottante
+  const btn=el("sparkBtn"); const rect=btn.getBoundingClientRect();
+  const f=document.createElement("div"); f.className="float"; f.textContent="+"+fmt(v);
+  const x=(e&&e.clientX!=null)? e.clientX-rect.left : rect.width/2;
+  const y=(e&&e.clientY!=null)? e.clientY-rect.top : rect.height/2;
+  f.style.left=x+"px"; f.style.top=y+"px"; btn.appendChild(f);
+  setTimeout(()=>f.remove(),1000);
+}
+function flashAdvance(){
+  const b=el("ageIcon"); b.style.transition="transform .4s"; b.style.transform="scale(1.5) rotate(8deg)";
+  setTimeout(()=>b.style.transform="",400);
+}
+
+// ---------- Sauvegarde ----------
+function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }catch(e){} }
+function load(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    const d=JSON.parse(raw);
+    G=Object.assign(newGame(), d);
+    G.res=Object.assign({know:0,energy:0,culture:0,pop:0}, d.res||{});
+    G.buildings=d.buildings||{}; G.techs=d.techs||{};
+    // gain hors-ligne (max 8h)
+    const away=Math.min((Date.now()-(d.lastTick||Date.now()))/1000, 8*3600);
+    if(away>30){
+      const gain={know:rateOf("know")*away, energy:rateOf("energy")*away, culture:rateOf("culture")*away, pop:rateOf("pop")*away};
+      G.res.know+=gain.know; G.totalKnow+=gain.know;
+      G.res.energy+=gain.energy; G.res.culture+=gain.culture; G.res.pop+=gain.pop;
+      setTimeout(()=>toast(`⏳ Pendant votre absence, l'humanité a gagné <b>${fmt(gain.know)}</b> connaissance.`),600);
+    }
+    return true;
+  }catch(e){ return false; }
+}
+function exportSave(){
+  G.lastTick=Date.now();
+  const blob=new Blob([JSON.stringify(G)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="aeon-sauvegarde-"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+  toast("⬇ Sauvegarde exportée.");
+}
+function importSave(file){
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const d=JSON.parse(r.result);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(d));
+    location.reload();
+  }catch(e){ toast("⚠ Fichier de sauvegarde invalide."); } };
+  r.readAsText(file);
+}
+
+// ---------- Liaison UI ----------
+el("sparkBtn").addEventListener("click", doSpark);
+el("advanceBtn").addEventListener("click", advanceAge);
+el("transcendBtn").addEventListener("click", transcend);
+el("overlay").addEventListener("click", e=>{ if(e.target.id==="overlay") closeModal(); });
+
+document.addEventListener("click", e=>{
+  const buy=e.target.closest("[data-buy]"); if(buy){ buyBuilding(buy.dataset.buy); return; }
+  const tech=e.target.closest("[data-tech]"); if(tech){ buyTech(tech.dataset.tech); return; }
+});
+
+// onglets
+el("tabs").addEventListener("click", e=>{
+  const t=e.target.closest(".tab"); if(!t) return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  el("panel-"+t.dataset.tab).classList.add("active");
+});
+
+el("exportBtn").onclick=exportSave;
+el("importBtn").onclick=()=>el("fileInput").click();
+el("fileInput").onchange=e=>{ if(e.target.files[0]) importSave(e.target.files[0]); };
+el("resetBtn").onclick=()=>showModal({
+  icon:"⚠️", title:"Tout réinitialiser ?", text:"Cette action efface définitivement votre civilisation et toutes vos étincelles. Irréversible.",
+  choices:[
+    {label:"<b>Oui</b>, tout effacer", fn:()=>{ localStorage.removeItem(SAVE_KEY); location.reload(); }},
+    {label:"Annuler", fn:()=>{}},
+  ]});
+
+// raccourci clavier : barre espace = éveiller
+document.addEventListener("keydown", e=>{
+  if(e.code==="Space" && el("overlay").classList.contains("show")===false){
+    e.preventDefault(); doSpark();
+  }
+});
+
+// ---------- Champ d'étoiles ----------
+(function(){
+  const c=el("stars"), ctx=c.getContext("2d");
+  let stars=[];
+  function resize(){ c.width=innerWidth; c.height=innerHeight;
+    stars=Array.from({length:Math.min(180, Math.floor(innerWidth*innerHeight/9000))},()=>({
+      x:Math.random()*c.width, y:Math.random()*c.height, r:Math.random()*1.4+.2,
+      a:Math.random(), s:Math.random()*.02+.004 }));
+  }
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const s of stars){
+      s.a+=s.s; const al=.3+Math.abs(Math.sin(s.a))*.7;
+      ctx.beginPath(); ctx.fillStyle=`rgba(180,180,255,${al})`;
+      ctx.arc(s.x,s.y,s.r,0,7); ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  addEventListener("resize", resize); resize(); draw();
+})();
+
+// ---------- Démarrage ----------
+load();
+render();
+requestAnimationFrame(loop);
+setInterval(()=>{ G.lastTick=Date.now(); save(); }, 10000);
+addEventListener("beforeunload", ()=>{ G.lastTick=Date.now(); save(); });
+</script>
+</body>
+</html>
