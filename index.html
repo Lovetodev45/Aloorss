@@ -203,14 +203,105 @@ header{text-align:center;padding:34px 0 18px}
 footer{text-align:center;color:var(--dim);font-size:12px;margin-top:40px;line-height:1.8}
 footer a{color:var(--muted)}
 
+/* ============================================================
+   JUICE — game feel, animations, theming
+   ============================================================ */
+
+/* Thème animé : ces éléments transitionnent leurs couleurs au fil des âges */
+body{transition:background 1.6s ease}
+.logo,.bar-fill,.advance-btn,.transcend-btn{transition:background 1.6s ease,filter .2s,transform .12s}
+.age-banner,.spark-btn,.res,.tab.active{transition:background 1.6s ease,border-color 1s ease,box-shadow 1s ease,transform .12s}
+
+/* Calques d'effets plein écran */
+#fx,#confetti{position:fixed;inset:0;z-index:240;pointer-events:none}
+#flash{position:fixed;inset:0;z-index:235;pointer-events:none;
+  background:radial-gradient(circle at 50% 42%,rgba(255,247,214,.95),rgba(169,155,255,.35) 45%,transparent 72%);opacity:0}
+#flash.go{animation:flashAnim 1s ease}
+@keyframes flashAnim{0%{opacity:0}9%{opacity:.9}100%{opacity:0}}
+
+/* Secousse d'écran */
+.shake{animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{
+  10%{transform:translate(calc(-5px*var(--sk,1)),calc(3px*var(--sk,1)))}
+  25%{transform:translate(calc(6px*var(--sk,1)),calc(-4px*var(--sk,1)))}
+  40%{transform:translate(calc(-6px*var(--sk,1)),calc(4px*var(--sk,1)))}
+  55%{transform:translate(calc(5px*var(--sk,1)),calc(-3px*var(--sk,1)))}
+  70%{transform:translate(calc(-3px*var(--sk,1)),calc(2px*var(--sk,1)))}
+  85%{transform:translate(calc(2px*var(--sk,1)),calc(-1px*var(--sk,1)))}
+}
+
+/* Bouton d'éveil — respiration, ondes, punch */
+.spark-btn{animation:sparkBreath 3.2s ease-in-out infinite}
+.spark-btn:hover{animation-play-state:paused}
+@keyframes sparkBreath{
+  0%,100%{box-shadow:0 0 40px var(--accent-glow),inset 0 0 30px rgba(124,108,255,.10)}
+  50%{box-shadow:0 0 78px var(--accent-glow),inset 0 0 50px rgba(124,108,255,.22)}
+}
+.ripple{position:absolute;width:24px;height:24px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,0) 70%);
+  transform:translate(-50%,-50%) scale(0);pointer-events:none;animation:ripple .6s ease-out forwards}
+@keyframes ripple{to{transform:translate(-50%,-50%) scale(11);opacity:0}}
+
+/* Nombres flottants juteux (niveau document, non rognés) */
+.bigfloat{position:fixed;pointer-events:none;z-index:250;font-weight:900;
+  text-shadow:0 2px 10px rgba(0,0,0,.65);will-change:transform,opacity;white-space:nowrap;
+  animation:bigFloat 1.05s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes bigFloat{
+  0%{opacity:0;transform:translate(-50%,-35%) scale(.55) rotate(var(--rot,0deg))}
+  16%{opacity:1;transform:translate(-50%,-62%) scale(1.12) rotate(var(--rot,0deg))}
+  100%{opacity:0;transform:translate(-50%,-190%) scale(1) rotate(var(--rot,0deg))}
+}
+
+/* Compteur de combo */
+#combo{height:30px;margin-top:12px;font-family:'Cinzel',serif;font-weight:700;font-size:16px;
+  letter-spacing:.06em;color:var(--gold);opacity:0;transform:scale(.7);
+  transition:opacity .18s ease,transform .15s ease;text-shadow:0 0 14px var(--gold-glow)}
+#combo.show{opacity:1;transform:scale(1)}
+#combo.bump{animation:comboBump .18s ease}
+@keyframes comboBump{0%{transform:scale(1)}50%{transform:scale(1.22)}100%{transform:scale(1)}}
+
+/* Compteurs de ressources qui "pop" quand ils montent */
+.res-val{transition:color .3s}
+.res-val.pop{animation:valPop .35s ease}
+@keyframes valPop{0%{transform:scale(1)}30%{transform:scale(1.16);color:var(--gold)}100%{transform:scale(1)}}
+
+/* Cartes abordables : pulsation d'invitation */
+.card.affordable{animation:cardGlow 2.1s ease-in-out infinite}
+@keyframes cardGlow{0%,100%{box-shadow:0 0 0 rgba(124,108,255,0)}50%{box-shadow:0 0 20px var(--accent-glow)}}
+.card.bought{animation:boughtFlash .55s ease}
+@keyframes boughtFlash{0%{box-shadow:0 0 0 rgba(94,224,160,0)}25%{box-shadow:0 0 28px rgba(94,224,160,.65);border-color:var(--green)}100%{box-shadow:none}}
+
+/* Bouton d'avancement prêt : pulsation dorée */
+.advance-btn:not(:disabled){animation:readyPulse 1.5s ease-in-out infinite}
+@keyframes readyPulse{0%,100%{box-shadow:0 0 24px var(--gold-glow)}50%{box-shadow:0 0 50px var(--gold-glow)}}
+
+/* Barre de progression : reflet qui glisse */
+.bar-fill{position:relative;overflow:hidden}
+.bar-fill::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+  transform:translateX(-100%);animation:shimmer 2.2s linear infinite}
+@keyframes shimmer{to{transform:translateX(200%)}}
+.ach-prog>i{transition:width .5s ease}
+
+/* Icône d'âge : halo tournant */
+.age-icon{filter:drop-shadow(0 0 14px var(--accent-glow))}
+
+/* Onglet badge : pulsation pour attirer l'œil */
+.tab .badge{animation:badgePulse 1.3s ease-in-out infinite}
+@keyframes badgePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+
 @media(max-width:680px){
   .resources{grid-template-columns:repeat(2,1fr)}
   .logo{letter-spacing:.1em}
+  #combo{font-size:14px}
 }
 </style>
 </head>
 <body>
 <canvas id="stars"></canvas>
+<canvas id="fx"></canvas>
+<canvas id="confetti"></canvas>
+<div id="flash"></div>
 <div class="wrap">
   <header>
     <div class="logo">ÆON</div>
@@ -238,8 +329,10 @@ footer a{color:var(--muted)}
       Éveiller l'esprit
       <small id="sparkSub">+1 connaissance par éveil</small>
     </button>
+    <div id="combo"></div>
     <div class="action-row">
       <button class="action-btn" id="shareBtn">📣 Partager ma civilisation</button>
+      <button class="action-btn" id="muteBtn">🔊 Son</button>
       <button class="action-btn install" id="installBtn" style="display:none">📲 Installer l'app</button>
     </div>
   </div>
@@ -446,6 +539,7 @@ function loop(now){
     triggerEvent(); G.lastEvent=Date.now();
   }
 
+  updateNumbers();
   if(now-lastRender>120){ render(); lastRender=now; }
   requestAnimationFrame(loop);
 }
@@ -465,7 +559,6 @@ function render(){
        <div class="res-rate" id="rr-${k}">+0 /s</div></div></div>`);
   }}
   for(const k in RES_META){
-    el("rv-"+k).textContent = fmt(G.res[k]);
     const rate=rateOf(k);
     const e=el("rr-"+k);
     e.textContent = "+"+fmt(rate)+" /s";
@@ -502,6 +595,9 @@ function render(){
 
 function renderBuild(){
   const grid=el("buildGrid");
+  let sig=G.age+"|";
+  for(const b of BUILDINGS) sig+=b.id+getCount(b.id)+(G.res.know>=buildingCost(b)?"1":"0");
+  if(sig===_bsig) return; _bsig=sig;
   let html="";
   for(const b of BUILDINGS){
     const unlocked = G.age>=b.age;
@@ -536,6 +632,10 @@ function renderBuild(){
 
 function renderTech(){
   const grid=el("techGrid");
+  let sig=G.age+"|";
+  for(const t of TECHS){ const ck=t.cost.know||0, cc=t.cost.culture||0;
+    sig+=t.id+(G.techs[t.id]?"o":(G.res.know>=ck&&G.res.culture>=cc?"1":"0")); }
+  if(sig===_tsig) return; _tsig=sig;
   let html=""; let avail=0;
   for(const t of TECHS){
     const owned=!!G.techs[t.id];
@@ -605,23 +705,34 @@ function renderTranscend(){
 function buyBuilding(id){
   const b=BUILDINGS.find(x=>x.id===id); if(!b) return;
   const cost=buildingCost(b);
-  if(G.res.know<cost) return;
+  if(G.res.know<cost){ Sound.blip(); return; }
   G.res.know-=cost;
   G.buildings[id]=getCount(id)+1;
+  Sound.buy();
   render();
+  const card=(document.querySelector(`[data-buy="${id}"]`)||{}).closest?.(".card");
+  if(card){ card.classList.add("bought"); const p=centerOf(card);
+    FX.burst(p.x,p.y,{n:14,colors:["#5ee0a0","#a99bff","#fff7d6"],speed:3.6,size:3}); }
 }
 function buyTech(id){
   const t=TECHS.find(x=>x.id===id); if(!t||G.techs[id]) return;
   const ck=t.cost.know||0, cc=t.cost.culture||0;
-  if(G.res.know<ck||G.res.culture<cc) return;
+  if(G.res.know<ck||G.res.culture<cc){ Sound.blip(); return; }
+  const btn=document.querySelector(`[data-tech="${id}"]`);
+  const pos=btn? centerOf(btn.closest(".card")) : {x:innerWidth/2,y:innerHeight*0.4};
   G.res.know-=ck; G.res.culture-=cc;
   G.techs[id]=true;
+  Sound.tech();
+  FX.burst(pos.x,pos.y,{n:22,colors:["#8b9bff","#f5c542","#fff7d6"],speed:4.2,size:3.2});
   toast(`🔬 Découverte : <b>${t.name}</b> — ${t.desc}`);
   render();
 }
 function advanceAge(){
   const next=AGES[G.age+1]; if(!next||G.totalKnow<next.req) return;
   G.age++;
+  applyTheme(G.age);
+  flash(); shake(1.1); FX.confetti(150); Sound.age();
+  for(const k in disp) popRes(k);
   toast(`${next.icon} L'humanité entre dans l'<b>${next.name}</b>.`);
   flashAdvance();
   render();
@@ -634,8 +745,10 @@ function transcend(){
     text:`Toute votre civilisation actuelle sera dissoute. Vous conserverez <b>${pot}</b> Étincelles d'Éon (soit +${pot*3} % de production permanente) et recommencerez à l'Âge de Pierre, plus puissant que jamais.`,
     choices:[
       {label:"<b>Oui</b>, transcender et renaître", fn:()=>{
-        const keepSparks=pot;
-        G=newGame(); G.sparks=keepSparks;
+        const keepSparks=pot, muted=G.muted;
+        G=newGame(); G.sparks=keepSparks; G.muted=muted;
+        applyTheme(0); syncDisplay();
+        flash(); shake(1.4); FX.confetti(240); Sound.transcend();
         toast(`✦ Renaissance. Vous portez désormais <b>${keepSparks}</b> étincelle(s).`);
         render(); save();
       }},
@@ -668,9 +781,11 @@ const EVENTS=[
   ]},
 ];
 function boost(mult,sec){ G.eventBoost=mult; G.eventBoostUntil=Date.now()+sec*1000;
+  shake(.6); FX.confetti(60); Sound.achieve();
   toast(`Bonus actif : <b>×${mult}</b> pendant ${sec} s !`); }
 function triggerEvent(){
   const e=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  Sound.event();
   showModal(e);
 }
 
@@ -701,16 +816,31 @@ function toast(html, ms=4200){
 
 // ---------- Clic ----------
 function doSpark(e){
-  const v=clickValue();
+  bumpCombo();
+  const v=clickValue()*comboMult();
   G.res.know+=v; G.totalKnow+=v;
   G.clicks=(G.clicks||0)+1;
-  // animation flottante
-  const btn=el("sparkBtn"); const rect=btn.getBoundingClientRect();
-  const f=document.createElement("div"); f.className="float"; f.textContent="+"+fmt(v);
-  const x=(e&&e.clientX!=null)? e.clientX-rect.left : rect.width/2;
-  const y=(e&&e.clientY!=null)? e.clientY-rect.top : rect.height/2;
-  f.style.left=x+"px"; f.style.top=y+"px"; btn.appendChild(f);
-  setTimeout(()=>f.remove(),1000);
+  const btn=el("sparkBtn"), rect=btn.getBoundingClientRect();
+  const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
+  const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
+  // onde au point de clic
+  const rp=document.createElement("span"); rp.className="ripple";
+  rp.style.left=(cx-rect.left)+"px"; rp.style.top=(cy-rect.top)+"px";
+  btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
+  // punch du bouton (WAAPI : compose avec la respiration en box-shadow)
+  if(btn.animate) btn.animate(
+    [{transform:"scale(.96)"},{transform:"scale(1.05)"},{transform:"scale(1)"}],
+    {duration:170,easing:"ease-out"});
+  // nombre flottant qui grossit avec le combo
+  const size=18+Math.min(combo,30)*0.55;
+  const col=combo>=20?"#ffd86b":combo>=8?"#a99bff":"#8b9bff";
+  popText(cx,cy,"+"+fmt(v),col,size);
+  // particules + son
+  FX.burst(cx,cy,{n:combo>=15?12:7,colors:["#8b9bff","#a99bff","#fff7d6"],speed:3,size:2.6,up:1.4});
+  Sound.click(combo);
+  // récompense visuelle tous les 25 combos
+  if(combo>0 && combo%25===0){ shake(.7);
+    FX.burst(cx,cy,{n:26,speed:5,size:4,colors:["#f5c542","#a99bff","#fff7d6"]}); }
 }
 function flashAdvance(){
   const b=el("ageIcon"); b.style.transition="transform .4s"; b.style.transform="scale(1.5) rotate(8deg)";
@@ -821,6 +951,150 @@ document.addEventListener("keydown", e=>{
   addEventListener("resize", resize); resize(); draw();
 })();
 
+/* ============================================================
+   JUICE — moteur de game feel
+   ============================================================ */
+
+// ---------- Moteur audio procédural (zéro fichier) ----------
+const Sound=(()=>{
+  let ctx,master,enabled=true;
+  function init(){ if(ctx) return;
+    try{ ctx=new (window.AudioContext||window.webkitAudioContext)();
+      master=ctx.createGain(); master.gain.value=.5; master.connect(ctx.destination);
+    }catch(e){} }
+  function tone(freq,dur,type,vol,slideTo){
+    if(!enabled||!ctx) return;
+    const t=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type||"sine"; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1,slideTo),t+dur);
+    g.gain.setValueAtTime(.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||.2,t+dur*.12);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+.02);
+  }
+  function seq(notes,type,vol,step){ notes.forEach((f,i)=>setTimeout(()=>tone(f,.28,type,vol),i*(step||80))); }
+  return {
+    init,
+    toggle(){ enabled=!enabled; return enabled; },
+    isOn(){ return enabled; },
+    set(v){ enabled=v; },
+    click(combo){ const b=400+Math.min(combo||0,45)*16; tone(b,.09,"triangle",.16,b*1.6); },
+    buy(){ tone(300,.08,"square",.12,480); setTimeout(()=>tone(540,.1,"triangle",.12,700),55); },
+    tech(){ seq([523,659,784,1046],"sine",.15,70); },
+    age(){ seq([392,523,659,784,1046,1318],"triangle",.17,95); },
+    achieve(){ seq([659,880,1175],"sine",.18,90); },
+    transcend(){ seq([262,330,392,523,659,784,1046,1318],"sine",.2,110); },
+    event(){ tone(660,.12,"sine",.14,990); },
+    blip(){ tone(880,.05,"sine",.08); },
+  };
+})();
+
+// ---------- Particules (canvas plein écran) ----------
+const FX=(()=>{
+  const c=el("fx"), x=c.getContext("2d"); let parts=[], W=0,H=0;
+  function resize(){ c.width=W=innerWidth; c.height=H=innerHeight; }
+  addEventListener("resize",resize); resize();
+  function burst(px,py,o){ o=o||{};
+    const n=o.n||14, cols=o.colors||["#f5c542","#a99bff","#fff7d6"],
+      sp=o.speed||3.4, sz=o.size||3, gr=o.gravity!=null?o.gravity:.07, up=o.up||1;
+    for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=sp*(.35+Math.random()*.9);
+      parts.push({x:px,y:py,vx:Math.cos(a)*v,vy:Math.sin(a)*v-up,life:1,
+        decay:.012+Math.random()*.022,r:sz*(.6+Math.random()),g:gr,
+        col:cols[(Math.random()*cols.length)|0],shape:o.shape||"circle"}); }
+  }
+  function confetti(n){ n=n||130;
+    const cols=["#f5c542","#a99bff","#5ee0a0","#ff6fb5","#ffb454","#8b9bff","#fff7d6"];
+    for(let i=0;i<n;i++) parts.push({x:Math.random()*W,y:-20-Math.random()*H*.35,
+      vx:(Math.random()-.5)*2.4,vy:2+Math.random()*3.5,life:1,decay:.0035+Math.random()*.004,
+      r:4+Math.random()*5,g:.05,col:cols[(Math.random()*cols.length)|0],shape:"rect",spin:Math.random()*.3}); }
+  function tick(){
+    x.clearRect(0,0,W,H);
+    for(let i=parts.length-1;i>=0;i--){ const p=parts[i];
+      p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=.99; p.life-=p.decay;
+      if(p.life<=0||p.y>H+30){ parts.splice(i,1); continue; }
+      x.globalAlpha=Math.max(0,Math.min(1,p.life)); x.fillStyle=p.col;
+      if(p.shape==="rect"){ x.save(); x.translate(p.x,p.y);
+        x.rotate((p.spin||.1)*p.x*.04+p.life*4); x.fillRect(-p.r,-p.r*.5,p.r*2,p.r); x.restore(); }
+      else { x.beginPath(); x.arc(p.x,p.y,Math.max(.5,p.r*p.life),0,7); x.fill(); }
+    }
+    x.globalAlpha=1; requestAnimationFrame(tick);
+  }
+  tick();
+  return {burst,confetti};
+})();
+
+// ---------- Secousse d'écran ----------
+function shake(intensity){
+  const w=document.querySelector(".wrap");
+  w.style.setProperty("--sk", intensity||1);
+  w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake");
+}
+// ---------- Flash plein écran ----------
+function flash(){ const f=el("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+
+// ---------- Nombre flottant (niveau document) ----------
+function popText(x,y,text,color,size){
+  const d=document.createElement("div"); d.className="bigfloat";
+  d.textContent=text; d.style.left=x+"px"; d.style.top=y+"px";
+  d.style.color=color||"var(--know)"; d.style.fontSize=(size||20)+"px";
+  d.style.setProperty("--rot",((Math.random()*10-5)|0)+"deg");
+  document.body.appendChild(d); setTimeout(()=>d.remove(),1100);
+}
+
+// ---------- Compteurs animés (lerp 60 fps) ----------
+const disp={know:0,energy:0,culture:0,pop:0};
+let _bsig="",_tsig="",_gsig="";  // signatures de cache (anti-scintillement)
+function syncDisplay(){ for(const k in disp) disp[k]=G.res[k]; }
+function updateNumbers(){
+  for(const k in disp){
+    const target=G.res[k];
+    disp[k]+=(target-disp[k])*0.18;
+    if(Math.abs(target-disp[k])<Math.max(.5,Math.abs(target)*1e-4)) disp[k]=target;
+    const node=el("rv-"+k); if(node) node.textContent=fmt(disp[k]);
+  }
+}
+function popRes(k){ const n=el("rv-"+k); if(!n) return; n.classList.remove("pop"); void n.offsetWidth; n.classList.add("pop"); }
+
+// ---------- Système de combo (clics rapides) ----------
+let combo=0, comboTimer=null;
+function bumpCombo(){
+  combo++;
+  const c=el("combo");
+  if(combo>=3){
+    c.classList.add("show");
+    const tier=combo>=40?"🔥🔥🔥":combo>=20?"🔥🔥":"🔥";
+    c.innerHTML=`${tier} Combo ×${combo}`;
+    c.classList.remove("bump"); void c.offsetWidth; c.classList.add("bump");
+  }
+  clearTimeout(comboTimer);
+  comboTimer=setTimeout(()=>{ combo=0; c.classList.remove("show"); }, 1400);
+}
+function comboMult(){ return 1 + Math.min(combo,50)*0.04; } // jusqu'à ×3 en martelant
+
+// ---------- Thème évolutif par âge ----------
+const AGE_THEME=[
+  {bg:"#0c0608",bg2:"#170c0e",ac:"#ff7a3c",acl:"#ffb488",gold:"#ffb454",glow:"rgba(255,122,60,.22)",ggl:"rgba(255,180,84,.22)"}, // Pierre — braise
+  {bg:"#0c0908",bg2:"#181210",ac:"#e0a44a",acl:"#f5d196",gold:"#f5c542",glow:"rgba(224,164,74,.22)",ggl:"rgba(245,197,66,.22)"}, // Antiquité — bronze
+  {bg:"#0d070c",bg2:"#1a0e15",ac:"#cc5a78",acl:"#ec97ac",gold:"#e8b04a",glow:"rgba(204,90,120,.22)",ggl:"rgba(232,176,74,.2)"}, // Moyen Âge — pourpre
+  {bg:"#08090c",bg2:"#10171a",ac:"#3fb5a3",acl:"#8fe7d8",gold:"#f5c542",glow:"rgba(63,181,163,.22)",ggl:"rgba(245,197,66,.2)"}, // Renaissance — émeraude/or
+  {bg:"#0b0a08",bg2:"#171410",ac:"#c79348",acl:"#e6c285",gold:"#d9a93a",glow:"rgba(199,147,72,.22)",ggl:"rgba(217,169,58,.2)"}, // Industrielle — laiton
+  {bg:"#06090f",bg2:"#0c1622",ac:"#3aa0e6",acl:"#86cdf5",gold:"#5ee0e0",glow:"rgba(58,160,230,.24)",ggl:"rgba(94,224,224,.2)"}, // Information — cyan
+  {bg:"#08060f",bg2:"#120c20",ac:"#9a5cff",acl:"#c4a3ff",gold:"#54e0b0",glow:"rgba(154,92,255,.26)",ggl:"rgba(84,224,176,.2)"}, // IA — néon violet
+  {bg:"#050810",bg2:"#0a1024",ac:"#4d7cff",acl:"#9ab0ff",gold:"#62e0e0",glow:"rgba(77,124,255,.26)",ggl:"rgba(98,224,224,.2)"}, // Spatiale — bleu profond
+  {bg:"#0a0814",bg2:"#161028",ac:"#c9a8ff",acl:"#ecdfff",gold:"#fff0b8",glow:"rgba(201,168,255,.3)",ggl:"rgba(255,240,184,.28)"}, // Transcendance — iridescent
+];
+function applyTheme(age){
+  const t=AGE_THEME[Math.min(age,AGE_THEME.length-1)]; if(!t) return;
+  const s=document.documentElement.style;
+  s.setProperty("--bg",t.bg); s.setProperty("--bg2",t.bg2);
+  s.setProperty("--accent",t.ac); s.setProperty("--accent-light",t.acl);
+  s.setProperty("--accent-glow",t.glow); s.setProperty("--gold",t.gold);
+  s.setProperty("--gold-glow",t.ggl);
+}
+
+// ---------- Position centre d'un élément ----------
+function centerOf(node){ const r=node.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; }
+
 // ---------- Succès / Achievements ----------
 const ACHIEVEMENTS=[
   {id:"first",   icon:"🔥", name:"Première étincelle",     desc:"Éveiller l'esprit pour la première fois.",  goal:()=>G.totalKnow>=1},
@@ -844,6 +1118,8 @@ function checkAchievements(){
   for(const a of ACHIEVEMENTS){
     if(!G.achievements[a.id] && a.goal()){
       G.achievements[a.id]=true;
+      Sound.achieve();
+      FX.burst(innerWidth/2, 130, {n:26,colors:["#f5c542","#fff7d6","#a99bff"],speed:4.5,size:3.5});
       toast(`🏆 Succès débloqué : <b>${a.name}</b>`);
     }
   }
@@ -852,6 +1128,9 @@ function renderGoals(){
   if(!G.achievements) G.achievements={};
   const done=Object.keys(G.achievements).length;
   el("goalProgress").textContent=`${done} / ${ACHIEVEMENTS.length}`;
+  let sig=done+"|";
+  for(const a of ACHIEVEMENTS) sig+= G.achievements[a.id]?"1":Math.floor(Math.max(0,Math.min(1,(a.prog?a.prog():0)))*25);
+  if(sig===_gsig) return; _gsig=sig;
   let html="";
   for(const a of ACHIEVEMENTS){
     const ok=!!G.achievements[a.id];
@@ -952,8 +1231,17 @@ function checkDailyBonus(){
   G.lastDaily=today;
 }
 
+// ---------- Bouton son ----------
+el("muteBtn").onclick=()=>{ Sound.init(); const on=Sound.toggle(); G.muted=!on;
+  el("muteBtn").textContent = on ? "🔊 Son" : "🔇 Muet"; if(on) Sound.blip(); save(); };
+// Débloque l'audio au premier geste (politique navigateur)
+addEventListener("pointerdown", ()=>Sound.init(), {once:true});
+
 // ---------- Démarrage ----------
 load();
+applyTheme(G.age);
+syncDisplay();
+if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; }
 checkDailyBonus();
 render();
 if("serviceWorker" in navigator){
