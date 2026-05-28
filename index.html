@@ -183,6 +183,23 @@ header{text-align:center;padding:34px 0 18px}
 .choice:hover{border-color:var(--gold);background:var(--surface)}
 .choice b{color:var(--accent-light)}
 
+.action-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.action-btn{padding:10px 18px;border:1px solid var(--border-glow);border-radius:11px;cursor:pointer;font-weight:700;font-size:13px;background:var(--surface);color:var(--accent-light);transition:all .15s}
+.action-btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--text)}
+.action-btn.install{background:linear-gradient(120deg,var(--gold),#ffe9a3);color:#2a1f00;border-color:transparent;box-shadow:0 0 18px var(--gold-glow)}
+.ach{background:linear-gradient(180deg,var(--surface),var(--surface-2));border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;gap:12px;align-items:center;transition:border-color .15s}
+.ach.done{border-color:var(--gold);background:linear-gradient(180deg,rgba(245,197,66,.08),var(--surface-2))}
+.ach.locked{opacity:.55}
+.ach-ic{font-size:28px;width:46px;height:46px;display:grid;place-items:center;background:var(--bg2);border-radius:12px;border:1px solid var(--border);filter:grayscale(1)}
+.ach.done .ach-ic{filter:none;border-color:var(--gold)}
+.ach-body{flex:1;min-width:0}
+.ach-name{font-weight:700;font-size:14px}
+.ach-desc{font-size:12px;color:var(--muted)}
+.ach-prog{height:6px;background:var(--bg2);border-radius:6px;margin-top:6px;overflow:hidden;border:1px solid var(--border)}
+.ach-prog>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--gold))}
+.ach-check{font-size:20px;color:var(--gold)}
+#shareWrap{text-align:center}
+#shareCanvasImg{max-width:100%;border-radius:14px;border:1px solid var(--border-glow);margin:6px 0 14px}
 footer{text-align:center;color:var(--dim);font-size:12px;margin-top:40px;line-height:1.8}
 footer a{color:var(--muted)}
 
@@ -221,12 +238,17 @@ footer a{color:var(--muted)}
       Éveiller l'esprit
       <small id="sparkSub">+1 connaissance par éveil</small>
     </button>
+    <div class="action-row">
+      <button class="action-btn" id="shareBtn">📣 Partager ma civilisation</button>
+      <button class="action-btn install" id="installBtn" style="display:none">📲 Installer l'app</button>
+    </div>
   </div>
 
   <!-- Tabs -->
   <div class="tabs" id="tabs">
     <div class="tab active" data-tab="build">🏛️ Bâtiments</div>
     <div class="tab" data-tab="tech">🔬 Découvertes <span class="badge" id="techBadge" style="display:none">0</span></div>
+    <div class="tab" data-tab="goals">🏆 Succès</div>
     <div class="tab" data-tab="stats">📊 Civilisation</div>
     <div class="tab" data-tab="transcend">✦ Transcendance</div>
   </div>
@@ -234,6 +256,11 @@ footer a{color:var(--muted)}
   <!-- Panels -->
   <div class="panel active" id="panel-build"><div class="grid" id="buildGrid"></div></div>
   <div class="panel" id="panel-tech"><div class="grid" id="techGrid"></div></div>
+
+  <div class="panel" id="panel-goals">
+    <div class="section-h">Succès — <span id="goalProgress">0 / 0</span></div>
+    <div class="grid" id="goalGrid"></div>
+  </div>
 
   <div class="panel" id="panel-stats">
     <div class="section-h">Bilan de la civilisation</div>
@@ -469,7 +496,8 @@ function render(){
 
   el("sparkSub").textContent = "+"+fmt(clickValue())+" connaissance par éveil";
 
-  renderBuild(); renderTech(); renderStats(); renderTranscend();
+  renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend();
+  checkAchievements();
 }
 
 function renderBuild(){
@@ -675,6 +703,7 @@ function toast(html, ms=4200){
 function doSpark(e){
   const v=clickValue();
   G.res.know+=v; G.totalKnow+=v;
+  G.clicks=(G.clicks||0)+1;
   // animation flottante
   const btn=el("sparkBtn"); const rect=btn.getBoundingClientRect();
   const f=document.createElement("div"); f.className="float"; f.textContent="+"+fmt(v);
@@ -730,6 +759,12 @@ function importSave(file){
 
 // ---------- Liaison UI ----------
 el("sparkBtn").addEventListener("click", doSpark);
+el("shareBtn").addEventListener("click", doShare);
+el("installBtn").addEventListener("click", async ()=>{
+  if(!deferredPrompt){ toast("Sur iPhone : bouton Partager ⬆ → « Sur l'écran d'accueil »."); return; }
+  deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null;
+  el("installBtn").style.display="none";
+});
 el("advanceBtn").addEventListener("click", advanceAge);
 el("transcendBtn").addEventListener("click", transcend);
 el("overlay").addEventListener("click", e=>{ if(e.target.id==="overlay") closeModal(); });
@@ -786,11 +821,151 @@ document.addEventListener("keydown", e=>{
   addEventListener("resize", resize); resize(); draw();
 })();
 
+// ---------- Succès / Achievements ----------
+const ACHIEVEMENTS=[
+  {id:"first",   icon:"🔥", name:"Première étincelle",     desc:"Éveiller l'esprit pour la première fois.",  goal:()=>G.totalKnow>=1},
+  {id:"k1k",     icon:"📜", name:"Penseur",                desc:"Atteindre 1 000 de connaissance totale.",   goal:()=>G.totalKnow>=1e3, prog:()=>G.totalKnow/1e3},
+  {id:"age3",    icon:"🎨", name:"Esprit éclairé",         desc:"Atteindre la Renaissance.",                 goal:()=>G.age>=3, prog:()=>G.age/3},
+  {id:"b50",     icon:"🏗️", name:"Bâtisseur",              desc:"Construire 50 bâtiments au total.",         goal:()=>totalBuildings()>=50, prog:()=>totalBuildings()/50},
+  {id:"b250",    icon:"🏙️", name:"Architecte de mondes",   desc:"Construire 250 bâtiments au total.",        goal:()=>totalBuildings()>=250, prog:()=>totalBuildings()/250},
+  {id:"tech10",  icon:"🔬", name:"Savant",                 desc:"Débloquer 10 découvertes.",                 goal:()=>Object.keys(G.techs).length>=10, prog:()=>Object.keys(G.techs).length/10},
+  {id:"techall", icon:"🌌", name:"Omniscient",             desc:"Débloquer toutes les découvertes.",         goal:()=>Object.keys(G.techs).length>=TECHS.length, prog:()=>Object.keys(G.techs).length/TECHS.length},
+  {id:"ai",      icon:"🤖", name:"Singularité proche",     desc:"Atteindre l'Ère de l'IA.",                  goal:()=>G.age>=6, prog:()=>G.age/6},
+  {id:"space",   icon:"🚀", name:"Espèce interstellaire",  desc:"Atteindre l'Ère Spatiale.",                 goal:()=>G.age>=7, prog:()=>G.age/7},
+  {id:"transc",  icon:"✦",  name:"Au-delà de la chair",    desc:"Atteindre la Transcendance.",               goal:()=>G.age>=8, prog:()=>G.age/8},
+  {id:"spark1",  icon:"💫", name:"Renaissance",            desc:"Transcender pour la première fois.",        goal:()=>G.sparks>=1, prog:()=>G.sparks},
+  {id:"spark25", icon:"♾️", name:"Éternel recommencement", desc:"Accumuler 25 Étincelles d'Éon.",            goal:()=>G.sparks>=25, prog:()=>G.sparks/25},
+  {id:"click500",icon:"👆", name:"Main infatigable",       desc:"Éveiller l'esprit 500 fois.",               goal:()=>(G.clicks||0)>=500, prog:()=>(G.clicks||0)/500},
+  {id:"pop1m",   icon:"👥", name:"Civilisation florissante",desc:"Atteindre 1 million d'habitants.",          goal:()=>G.res.pop>=1e6, prog:()=>G.res.pop/1e6},
+];
+function totalBuildings(){return Object.values(G.buildings).reduce((a,b)=>a+b,0);}
+function checkAchievements(){
+  if(!G.achievements) G.achievements={};
+  for(const a of ACHIEVEMENTS){
+    if(!G.achievements[a.id] && a.goal()){
+      G.achievements[a.id]=true;
+      toast(`🏆 Succès débloqué : <b>${a.name}</b>`);
+    }
+  }
+}
+function renderGoals(){
+  if(!G.achievements) G.achievements={};
+  const done=Object.keys(G.achievements).length;
+  el("goalProgress").textContent=`${done} / ${ACHIEVEMENTS.length}`;
+  let html="";
+  for(const a of ACHIEVEMENTS){
+    const ok=!!G.achievements[a.id];
+    const p=ok?1:Math.max(0,Math.min(1,(a.prog?a.prog():0)));
+    html+=`<div class="ach ${ok?'done':'locked'}">
+      <div class="ach-ic">${a.icon}</div>
+      <div class="ach-body">
+        <div class="ach-name">${a.name}</div>
+        <div class="ach-desc">${a.desc}</div>
+        ${ok?'':`<div class="ach-prog"><i style="width:${(p*100).toFixed(0)}%"></i></div>`}
+      </div>
+      ${ok?'<div class="ach-check">✓</div>':''}
+    </div>`;
+  }
+  el("goalGrid").innerHTML=html;
+}
+
+// ---------- Partage (carte canvas) ----------
+function buildShareCard(){
+  const c=document.createElement("canvas");
+  c.width=1200; c.height=630;
+  const x=c.getContext("2d");
+  const g=x.createRadialGradient(600,180,60,600,315,800);
+  g.addColorStop(0,"#1a1838"); g.addColorStop(1,"#070710");
+  x.fillStyle=g; x.fillRect(0,0,1200,630);
+  for(let i=0;i<160;i++){ x.globalAlpha=Math.random()*.8+.2;
+    x.fillStyle="#b4b4ff"; const r=Math.random()*1.8+.3;
+    x.beginPath(); x.arc(Math.random()*1200,Math.random()*630,r,0,7); x.fill(); }
+  x.globalAlpha=1; x.textAlign="center";
+  x.fillStyle="#f5c542"; x.font="800 110px Cinzel, Georgia, serif";
+  x.fillText("ÆON", 600, 150);
+  x.fillStyle="#a99bff"; x.font="600 30px Inter, sans-serif";
+  x.fillText("LA SIMULATION DE L'HUMANITÉ", 600, 200);
+  const age=AGES[G.age];
+  x.fillStyle="#ffffff"; x.font="800 60px Inter, sans-serif";
+  x.fillText(age.icon+"  "+age.name, 600, 320);
+  x.fillStyle="#e8e8f5"; x.font="600 32px Inter, sans-serif";
+  x.fillText("🧠 "+fmt(G.totalKnow)+" connaissance · 👥 "+fmt(G.res.pop)+" habitants", 600, 388);
+  x.fillStyle="#f5c542"; x.font="700 32px Inter, sans-serif";
+  x.fillText("✦ "+G.sparks+" Étincelles · 🏆 "+Object.keys(G.achievements||{}).length+"/"+ACHIEVEMENTS.length+" succès", 600, 442);
+  x.fillStyle="#71717a"; x.font="500 28px Inter, sans-serif";
+  x.fillText("Et toi, jusqu'où mèneras-tu l'humanité ?", 600, 540);
+  x.fillStyle="#a99bff"; x.font="700 30px Inter, sans-serif";
+  x.fillText("lovetodev45.github.io/Aloorss", 600, 585);
+  return c;
+}
+async function doShare(){
+  const c=buildShareCard();
+  const url=location.href.split("#")[0];
+  const age=AGES[G.age];
+  const text=`J'ai mené l'humanité jusqu'à l'${age.name} ${age.icon} dans ÆON ! `+
+    `🧠 ${fmt(G.totalKnow)} de connaissance · ✦ ${G.sparks} étincelles. Et toi ?`;
+  c.toBlob(async (blob)=>{
+    const file=blob? new File([blob],"aeon.png",{type:"image/png"}):null;
+    if(navigator.share && file && navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({title:"ÆON", text, url, files:[file]}); return; }catch(e){}
+    }
+    if(navigator.share){ try{ await navigator.share({title:"ÆON", text, url}); return; }catch(e){} }
+    showShareFallback(c, text+" "+url);
+  }, "image/png");
+}
+function showShareFallback(canvas, text){
+  const dataUrl=canvas.toDataURL("image/png");
+  const m=el("modal");
+  m.innerHTML=`<div class="ev-ic">📣</div><h3>Partage ta civilisation</h3>
+    <div id="shareWrap"><img id="shareCanvasImg" src="${dataUrl}" alt="Carte ÆON">
+    <div class="choices">
+      <button class="choice" id="copyShare"><b>📋 Copier le texte + lien</b></button>
+      <button class="choice" id="dlShare"><b>⬇ Télécharger l'image</b></button>
+      <button class="choice" id="closeShare">Fermer</button>
+    </div></div>`;
+  el("overlay").classList.add("show");
+  el("copyShare").onclick=()=>{ navigator.clipboard?.writeText(text).then(()=>toast("📋 Copié !")); };
+  el("dlShare").onclick=()=>{ const a=document.createElement("a"); a.href=dataUrl; a.download="ma-civilisation-aeon.png"; a.click(); };
+  el("closeShare").onclick=closeModal;
+}
+
+// ---------- Installation PWA ----------
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",(e)=>{
+  e.preventDefault(); deferredPrompt=e;
+  const b=el("installBtn"); if(b) b.style.display="";
+});
+window.addEventListener("appinstalled",()=>{
+  const b=el("installBtn"); if(b) b.style.display="none";
+  toast("📲 ÆON est installé. Joue depuis ton écran d'accueil !");
+});
+
+// ---------- Bonus quotidien ----------
+function checkDailyBonus(){
+  const today=new Date().toDateString();
+  if(G.lastDaily===today) return;
+  if(G.lastDaily){
+    const bonus=rateOf("know")*120 + 50;
+    G.res.know+=bonus; G.totalKnow+=bonus;
+    setTimeout(()=>toast(`🎁 Bonus quotidien : <b>+${fmt(bonus)}</b> connaissance. Bon retour !`),900);
+  }
+  G.lastDaily=today;
+}
+
 // ---------- Démarrage ----------
 load();
+checkDailyBonus();
 render();
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
 requestAnimationFrame(loop);
 setInterval(()=>{ G.lastTick=Date.now(); save(); }, 10000);
+(function(){
+  const isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone=window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  if(isiOS && !standalone){ const b=el("installBtn"); if(b) b.style.display=""; }
+})();
 addEventListener("beforeunload", ()=>{ G.lastTick=Date.now(); save(); });
 </script>
 </body>
