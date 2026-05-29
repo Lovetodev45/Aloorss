@@ -69,7 +69,7 @@ header,.age-banner,.resources,.spark-zone,.tabs{flex:0 0 auto}
 footer{flex:0 0 auto}
 
 /* ===== Header ===== */
-header{text-align:center;padding:34px 0 18px}
+header{text-align:center;padding:14px 0 8px}
 .logo{
   font-family:'Cinzel',serif;font-weight:700;font-size:clamp(40px,7.5vw,76px);
   letter-spacing:.30em;line-height:1;padding-left:.30em;
@@ -82,25 +82,25 @@ header{text-align:center;padding:34px 0 18px}
 
 /* ===== Age banner ===== */
 .age-banner{
-  margin:22px auto 6px;max-width:680px;text-align:center;
+  margin:6px auto;max-width:680px;text-align:center;
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
   backdrop-filter:blur(16px) saturate(1.1);-webkit-backdrop-filter:blur(16px) saturate(1.1);
-  border:1px solid var(--hair);border-radius:16px;padding:18px 24px;
+  border:1px solid var(--hair);border-radius:16px;padding:14px 24px;
   box-shadow:0 10px 44px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.04);
 }
-.age-icon{font-size:40px;line-height:1;filter:drop-shadow(0 0 16px var(--gold-glow))}
+.age-icon{font-size:34px;line-height:1;filter:drop-shadow(0 0 16px var(--gold-glow))}
 .age-name{font-family:'Cinzel',serif;font-size:23px;font-weight:700;margin-top:4px;letter-spacing:.10em;
   color:var(--gold-soft)}
 .age-tag{color:var(--muted);font-size:12.5px;margin-top:4px;font-style:italic;letter-spacing:.02em}
-.age-progress{margin-top:16px}
-.objective{margin-top:13px;font-size:12.5px;color:var(--accent-light);letter-spacing:.03em;
+.age-progress{margin-top:10px}
+.objective{margin-top:9px;font-size:12.5px;color:var(--accent-light);letter-spacing:.03em;
   background:rgba(111,134,200,.08);border:1px solid var(--hair);border-radius:9px;padding:8px 12px;line-height:1.45}
 .objective b{color:var(--gold-soft)}
 .bar{height:7px;background:rgba(0,0,0,.4);border-radius:6px;overflow:hidden;border:1px solid var(--hair)}
 .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));transition:width .3s ease;border-radius:6px;box-shadow:0 0 10px var(--gold-glow)}
 .bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:7px;letter-spacing:.04em}
 .advance-btn{
-  margin-top:16px;width:100%;padding:12px;border:1px solid var(--gold);border-radius:11px;cursor:pointer;
+  margin-top:11px;width:100%;padding:11px;border:1px solid var(--gold);border-radius:11px;cursor:pointer;
   font-family:'Cinzel',serif;font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;
   background:linear-gradient(180deg,rgba(201,164,74,.16),rgba(201,164,74,.06));color:var(--gold-soft);
   box-shadow:0 0 24px var(--gold-glow);transition:transform .12s,filter .2s,background .2s;
@@ -111,7 +111,7 @@ header{text-align:center;padding:34px 0 18px}
 
 /* ===== Resource bar ===== */
 .resources{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(7px,1.6vw,10px);margin:clamp(12px,3vw,18px) 0;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(7px,1.6vw,10px);margin:10px 0;
 }
 .res{
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
@@ -131,7 +131,7 @@ header{text-align:center;padding:34px 0 18px}
 
 /* ===== Main click ===== */
 /* Zone autour de la planète 3D : haute pour laisser respirer le monde */
-.spark-zone{text-align:center;margin:18px 0 22px;display:flex;
+.spark-zone{text-align:center;margin:8px 0 6px;display:flex;
   flex-direction:column;align-items:center;justify-content:center;position:relative;gap:10px}
 .spark-hint{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.18em;color:var(--dim);
   text-transform:uppercase;pointer-events:none;animation:hintPulse 3s ease-in-out infinite}
@@ -152,7 +152,7 @@ header{text-align:center;padding:34px 0 18px}
 @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
 
 /* ===== Tabs ===== */
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;justify-content:center}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px;justify-content:center}
 .tab{
   padding:9px 17px;border-radius:10px;border:1px solid var(--hair);cursor:pointer;
   background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
@@ -245,7 +245,7 @@ header{text-align:center;padding:34px 0 18px}
 .choice:hover{border-color:var(--gold);background:var(--surface)}
 .choice b{color:var(--accent-light)}
 
-.action-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.action-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
 .action-btn{padding:10px 18px;border:1px solid var(--border-glow);border-radius:11px;cursor:pointer;font-weight:700;font-size:13px;background:var(--surface);color:var(--accent-light);transition:all .15s}
 .action-btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--text)}
 .action-btn.install{background:linear-gradient(120deg,var(--gold),#ffe9a3);color:#2a1f00;border-color:transparent;box-shadow:0 0 18px var(--gold-glow)}
