@@ -991,7 +991,8 @@ function transcend(){
         G.revelationSeen=rev; G.deepRevSeen=deep; G.endingSeen=end;
         G.prologueSeen=true; G.chronicles=chrono;
         applyTheme(0); syncDisplay();
-        World.setAge(0); World.ping(1.4); syncWorld();   // vide la planète et recommence
+        World.setAge(0,true); syncWorld();               // vide la planète et recommence
+        if(World.transcendBurst) World.transcendBurst(); // gerbe 3D spectaculaire
         flash(); shake(1.4); FX.confetti(240); Sound.transcend();
         toast(`✦ Renaissance. Cycle ${keepSparks+1} commence. <b>${keepSparks}</b> étincelle(s) préservée(s).`);
         render(); save();

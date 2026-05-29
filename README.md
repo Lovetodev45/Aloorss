@@ -17,15 +17,27 @@ Transcendance spatiale.
   automatique** + export/import
 - **Prestige** : *Transcender* pour gagner des Étincelles d'Éon
   (+3 % de production permanente chacune)
+- **Monde 3D vivant** : une vraie planète (Three.js) avec caméra orbitale.
+  Les bâtiments apparaissent **physiquement sur la surface** quand on les
+  construit ; on peut cliquer dessus dans l'espace. La planète se métamorphose
+  à travers les âges (roche → vie → cités → réseau → orbites → noyau de
+  transcendance), avec nuages, anneau planétaire, particules et transitions
+  cinématiques de caméra à chaque nouvel âge.
+- **Narration** : prologue, chroniques par âge, révélation d'identité et fin
+  secrète après 25 cycles.
+- **Panneau de test** (bouton ⚙ ou `?admin=1`) pour valider le jeu de bout en bout.
 
-Tout est contenu dans un seul fichier `index.html` : aucune dépendance,
-aucune clé d'API, 100 % hors-ligne. Aucune donnée ne quitte le navigateur.
+Aucune clé d'API, **100 % hors-ligne** (Three.js est embarqué localement).
+Aucune donnée ne quitte le navigateur.
 
 ## Structure du dépôt
 
 | Chemin | Description |
 |---|---|
-| `index.html` | Le jeu ÆON (page d'accueil) |
+| `index.html` | Le jeu ÆON : UI, moteur économique, narration, audio, effets |
+| `world.js` | Le monde 3D (scène Three.js, planète, bâtiments, caméra) |
+| `vendor/three.min.js` | Three.js r160 (embarqué pour le hors-ligne) |
+| `sw.js` | Service worker (cache hors-ligne) |
 | `aloorss/` | Ancien projet Aloorss, archivé |
 | `.github/workflows/deploy.yml` | Déploiement automatique sur GitHub Pages |
 

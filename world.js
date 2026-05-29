@@ -63,6 +63,13 @@ let pickList=[];                // meshes pickables -> {id}
 let pickCallback=null, emptyClickCallback=null;
 const tmpV=new THREE.Vector3();
 
+// Systèmes "monde vivant"
+let particleSys, particlePool=[], particleHead=0;
+let cloudMesh, ringMesh;
+let camAnim=null;              // animation cinématique de caméra
+let prevAgeInt=-1;             // pour détecter les passages d'âge
+const clock={t:0};
+
 // Slots déterministes sur la sphère (spirale de Fibonacci) — stables entre renders
 const SLOT_COUNT=520;
 let SLOTS=[];
@@ -109,6 +116,9 @@ function init(){
   buildSlots();
   buildStars();
   buildPlanet();
+  buildClouds();
+  buildRing();
+  buildParticles();
   buildLights();
 
   slotsGroup=new THREE.Group(); planet.add(slotsGroup);   // tourne avec la planète
@@ -176,6 +186,102 @@ function buildLights(){
   scene.add(sunLight);
   const rim=new THREE.DirectionalLight(0x4060ff, 0.6);
   rim.position.set(-8,-4,-6); scene.add(rim);
+}
+
+// ---- Nuages (couche translucide qui dérive) ----
+function buildClouds(){
+  const geo=new THREE.SphereGeometry(PLANET_R*1.05, 48, 48);
+  const mat=new THREE.MeshStandardMaterial({
+    color:0xffffff, transparent:true, opacity:0.0, roughness:1, metalness:0,
+    alphaMap:makeCloudTexture(), depthWrite:false,
+  });
+  cloudMesh=new THREE.Mesh(geo, mat);
+  scene.add(cloudMesh);
+}
+function makeCloudTexture(){
+  const s=256, cv=document.createElement("canvas"); cv.width=cv.height=s;
+  const x=cv.getContext("2d");
+  x.fillStyle="#000"; x.fillRect(0,0,s,s);
+  for(let i=0;i<140;i++){
+    const r=8+Math.random()*26, px=Math.random()*s, py=Math.random()*s;
+    const g=x.createRadialGradient(px,py,0,px,py,r);
+    g.addColorStop(0,"rgba(255,255,255,"+(0.4+Math.random()*0.4)+")");
+    g.addColorStop(1,"rgba(255,255,255,0)");
+    x.fillStyle=g; x.beginPath(); x.arc(px,py,r,0,7); x.fill();
+  }
+  const tex=new THREE.CanvasTexture(cv);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  return tex;
+}
+
+// ---- Anneau planétaire (apparaît à l'ère spatiale) ----
+function buildRing(){
+  const geo=new THREE.RingGeometry(PLANET_R*1.5, PLANET_R*2.2, 96, 1);
+  // incline les UV pour un dégradé radial
+  const mat=new THREE.MeshBasicMaterial({
+    color:0x88aaff, transparent:true, opacity:0, side:THREE.DoubleSide,
+    blending:THREE.AdditiveBlending, depthWrite:false,
+  });
+  ringMesh=new THREE.Mesh(geo, mat);
+  ringMesh.rotation.x=Math.PI*0.5 - 0.35;
+  ringMesh.rotation.z=0.2;
+  scene.add(ringMesh);
+}
+
+// ---- Système de particules 3D (clics, transcendance) ----
+const PARTICLE_MAX=600;
+function buildParticles(){
+  const pos=new Float32Array(PARTICLE_MAX*3);
+  const col=new Float32Array(PARTICLE_MAX*3);
+  for(let i=0;i<PARTICLE_MAX;i++){
+    particlePool.push({life:0, vx:0,vy:0,vz:0, x:0,y:0,z:0});
+    pos[i*3]=0;pos[i*3+1]=-9999;pos[i*3+2]=0;
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  g.setAttribute("color",new THREE.BufferAttribute(col,3));
+  particleSys=new THREE.Points(g, new THREE.PointsMaterial({
+    size:0.16, vertexColors:true, transparent:true, opacity:0.95,
+    blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true,
+  }));
+  scene.add(particleSys);
+}
+function emitParticles(origin, n, color, spread, speed){
+  const c=new THREE.Color(color||0xa99bff);
+  for(let i=0;i<n;i++){
+    const p=particlePool[particleHead];
+    particleHead=(particleHead+1)%PARTICLE_MAX;
+    p.x=origin.x; p.y=origin.y; p.z=origin.z;
+    // direction : vers l'extérieur + dispersion
+    const dir=origin.clone().normalize();
+    const rnd=new THREE.Vector3((Math.random()-0.5),(Math.random()-0.5),(Math.random()-0.5)).multiplyScalar(spread||1);
+    const vel=dir.multiplyScalar(speed||0.06).add(rnd.multiplyScalar(0.03));
+    p.vx=vel.x; p.vy=vel.y; p.vz=vel.z;
+    p.life=1; p.r=c.r; p.g=c.g; p.b=c.b;
+  }
+}
+function updateParticles(dt){
+  if(!particleSys) return;
+  const pos=particleSys.geometry.attributes.position.array;
+  const col=particleSys.geometry.attributes.color.array;
+  for(let i=0;i<PARTICLE_MAX;i++){
+    const p=particlePool[i];
+    if(p.life>0){
+      p.life-=dt*1.4;
+      p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
+      // légère attraction vers la planète (gravité)
+      const d=Math.hypot(p.x,p.y,p.z)||1;
+      const g=0.0006;
+      p.vx-=p.x/d*g; p.vy-=p.y/d*g; p.vz-=p.z/d*g;
+      pos[i*3]=p.x; pos[i*3+1]=p.y; pos[i*3+2]=p.z;
+      const l=Math.max(0,p.life);
+      col[i*3]=p.r*l; col[i*3+1]=p.g*l; col[i*3+2]=p.b*l;
+    } else {
+      pos[i*3+1]=-9999;
+    }
+  }
+  particleSys.geometry.attributes.position.needsUpdate=true;
+  particleSys.geometry.attributes.color.needsUpdate=true;
 }
 
 // ---- bruit (fbm) JS, pour relief & placement ----
@@ -327,12 +433,14 @@ function handleClick(px,py){
   if(hits.length){
     const m=hits[0].object;
     spawnHitFX(m);
+    emitParticles(hits[0].point, 14, ageBlend("emis").getHex(), 1.2, 0.07);
     if(pickCallback) pickCallback(m.userData.bid, m, hits[0].point);
     return;
   }
   // clic sur la planète elle-même ?
   const ph=raycaster.intersectObject(planet, false);
   if(ph.length){
+    emitParticles(ph[0].point, 18, 0xa9c2ff, 0.9, 0.08);
     if(emptyClickCallback) emptyClickCallback(ph[0].point);
     pulse=Math.min(pulse+0.8,1.6);
   }
@@ -369,24 +477,69 @@ function applyAgeVisual(){
   coreGlow.material.opacity=tr*0.5;
   coreGlow.scale.setScalar(1+tr*0.15+pulse*0.05);
   scene.fog.color.setHex(ageF>5?0x070a16:0x05050e);
+
+  // nuages : apparaissent dès qu'il y a de la vie (Antiquité), disparaissent à la Transcendance
+  if(cloudMesh){
+    const cl=Math.min(1, Math.max(0, (ageF-0.5)/2)) * Math.max(0, 1-tr);
+    cloudMesh.material.opacity=cl*0.5;
+    cloudMesh.material.color.copy(lerpColor(0xffffff, 0xbfcfff, Math.min(ageF/8,1)));
+  }
+  // anneau planétaire : ère spatiale → transcendance
+  if(ringMesh){
+    const rg=Math.min(1, Math.max(0, (ageF-6.5)/1.5));
+    ringMesh.material.opacity=rg*0.5;
+    ringMesh.material.color.copy(ageBlend("atm"));
+  }
 }
 
+// ---- Caméra cinématique (transition d'âge) ----
+function cinematicAge(){
+  // zoom rapproché puis recul, et petit tour
+  const startDist=camDist;
+  camAnim={t:0, dur:2200, fromDist:startDist, toClose:8.2, fromTheta:camTheta};
+}
+function tickCamAnim(dt){
+  if(!camAnim) return false;
+  camAnim.t+=dt*1000;
+  const k=Math.min(1, camAnim.t/camAnim.dur);
+  // courbe : plonge (0→0.4), tient (0.4→0.6), recule (0.6→1)
+  let d;
+  if(k<0.4){ const e=easeInOut(k/0.4); d=lerp(camAnim.fromDist, camAnim.toClose, e); }
+  else if(k<0.6){ d=camAnim.toClose; }
+  else { const e=easeInOut((k-0.6)/0.4); d=lerp(camAnim.toClose, camDistTarget, e); }
+  camDist=d;
+  camTheta=camAnim.fromTheta + k*0.9; // panoramique
+  if(k>=1){ camAnim=null; return false; }
+  return true;
+}
+function easeInOut(x){ return x<0.5? 2*x*x : 1-Math.pow(-2*x+2,2)/2; }
+
 // ---- Boucle ----
+let _lastFrame=0;
 function animate(){
   if(!ok) return;
   raf=requestAnimationFrame(animate);
   const now=performance.now();
+  const dt=Math.min(0.05, (now-(_lastFrame||now))/1000); _lastFrame=now;
 
   // lissages
   ageF += (ageTarget-ageF)*0.04;
-  camDist += (camDistTarget-camDist)*0.1;
   pulse *= 0.92;
 
-  if(autoRotate){ idleT++; camTheta += 0.0009; }
+  // caméra : animation cinématique prioritaire, sinon lissage normal
+  if(!tickCamAnim(dt)){
+    camDist += (camDistTarget-camDist)*0.1;
+    if(autoRotate){ idleT++; camTheta += 0.0009; }
+  }
   updateCamera();
 
-  // rotation planète
+  // particules 3D
+  updateParticles(dt);
+
+  // rotation planète + couches
   if(planet){ planet.rotation.y += 0.0016; }
+  if(cloudMesh){ cloudMesh.rotation.y += 0.0009; cloudMesh.rotation.x += 0.0001; }
+  if(ringMesh){ ringMesh.rotation.z += 0.0004; }
   if(starfield){ starfield.rotation.y += 0.00015; }
 
   // anims d'apparition + hit + orbites
@@ -435,13 +588,31 @@ function resize(){
 window.World={
   init,
   isActive(){ return ok; },
-  setAge(a,instant){ ageTarget=a; if(instant){ ageF=a; applyAgeVisual&&applyAgeVisual(); } },
+  setAge(a,instant){
+    const rising = a>prevAgeInt && prevAgeInt>=0 && !instant && ok;
+    ageTarget=a;
+    if(instant){ ageF=a; if(applyAgeVisual) applyAgeVisual(); }
+    else if(rising && ok){
+      // transition cinématique + gerbe de particules dorées
+      cinematicAge();
+      emitParticles(new THREE.Vector3(0, PLANET_R*1.1, 0), 120, 0xffe07a, 2.2, 0.12);
+      pulse=Math.min(pulse+1.2,1.8);
+    }
+    prevAgeInt=Math.floor(a);
+  },
   ping(s){ pulse=Math.min(pulse+(s||0.5),1.6); },
   syncBuildings,
   onPick, onWorldClick,
   focusBuilding(id){
     const node=buildingNodes[id]; if(!node||!node.meshes.length) return;
     const m=node.meshes[0]; spawnHitFX(m);
+    if(m.position) emitParticles(m.position.clone(), 12, 0x9affc2, 0.8, 0.05);
+  },
+  // gerbe spectaculaire (transcendance)
+  transcendBurst(){
+    if(!ok) return;
+    emitParticles(new THREE.Vector3(0,0,0), 300, 0xfff0b8, 3.0, 0.16);
+    pulse=1.8; cinematicAge();
   },
   resize,
 };
