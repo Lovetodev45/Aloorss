@@ -12,9 +12,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#070710; --bg2:#0c0c1a; --surface:#121225; --surface-2:#1a1a30;
-  --border:#2a2a45; --border-glow:#3d3d6b;
-  --text:#e8e8f5; --muted:#8b8bb0; --dim:#5a5a7a;
+  --bg:#070710; --bg2:#0c0c1a;
+  --surface:rgba(18,18,37,.62); --surface-2:rgba(26,26,48,.55);
+  --border:rgba(90,90,140,.28); --border-glow:rgba(124,108,255,.5);
+  --text:#e8e8f5; --muted:#9a9ac4; --dim:#6a6a92;
   --gold:#f5c542; --gold-glow:rgba(245,197,66,.18);
   --accent:#7c6cff; --accent-light:#a99bff; --accent-glow:rgba(124,108,255,.2);
   --know:#8b9bff; --energy:#ffb454; --culture:#ff6fb5; --pop:#5ee0a0;
@@ -24,19 +25,24 @@
 html,body{height:100%}
 body{
   font-family:'Inter',-apple-system,system-ui,sans-serif;
-  background:radial-gradient(ellipse at top,#12122a 0%,var(--bg) 55%);
+  background:#04040c;
   color:var(--text); line-height:1.5; overflow-x:hidden;
   -webkit-font-smoothing:antialiased; min-height:100%;
 }
 ::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border-glow)}
 
-/* starfield */
-#stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.55}
+/* 2D starfield fallback (sous le rendu 3D) */
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35}
+/* Monde 3D — plein écran, derrière l'UI */
+#world{position:fixed;inset:0;z-index:1;display:block;touch-action:none}
+/* Vignette douce pour la lisibilité de l'UI par-dessus le monde */
+#vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 42%,transparent 38%,rgba(4,4,12,.55) 100%)}
 
-.wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 16px 80px}
+.wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 16px 80px}
 
 /* ===== Header ===== */
 header{text-align:center;padding:34px 0 18px}
@@ -53,8 +59,9 @@ header{text-align:center;padding:34px 0 18px}
 .age-banner{
   margin:22px auto 6px;max-width:720px;text-align:center;
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
   border:1px solid var(--border);border-radius:18px;padding:18px 22px;
-  box-shadow:0 0 40px var(--accent-glow),inset 0 1px 0 rgba(255,255,255,.04);
+  box-shadow:0 8px 40px rgba(0,0,0,.45),0 0 40px var(--accent-glow),inset 0 1px 0 rgba(255,255,255,.06);
 }
 .age-icon{font-size:42px;line-height:1}
 .age-name{font-family:'Cinzel',serif;font-size:24px;font-weight:700;margin-top:4px;letter-spacing:.04em}
@@ -78,8 +85,9 @@ header{text-align:center;padding:34px 0 18px}
 }
 .res{
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  backdrop-filter:blur(12px) saturate(1.2);-webkit-backdrop-filter:blur(12px) saturate(1.2);
   border:1px solid var(--border);border-radius:14px;padding:12px 14px;
-  display:flex;align-items:center;gap:10px;
+  display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);
 }
 .res-ic{font-size:22px;width:34px;text-align:center}
 .res-meta{min-width:0;flex:1}
@@ -89,13 +97,21 @@ header{text-align:center;padding:34px 0 18px}
 .res-rate.zero{color:var(--dim)}
 
 /* ===== Main click ===== */
-.spark-zone{text-align:center;margin:6px 0 22px}
+/* Zone autour de la planète 3D : haute pour laisser respirer le monde */
+.spark-zone{text-align:center;margin:6px 0 22px;min-height:300px;display:flex;
+  flex-direction:column;align-items:center;justify-content:flex-end;position:relative}
+.spark-hint{position:absolute;top:0;left:50%;transform:translateX(-50%);
+  font-family:'Cinzel',serif;font-size:13px;letter-spacing:.18em;color:var(--muted);
+  text-transform:uppercase;pointer-events:none;text-shadow:0 0 12px rgba(0,0,0,.8);
+  animation:hintPulse 3s ease-in-out infinite}
+@keyframes hintPulse{0%,100%{opacity:.5}50%{opacity:.95}}
 .spark-btn{
-  position:relative;width:min(340px,80vw);height:140px;border:none;cursor:pointer;border-radius:20px;
-  background:radial-gradient(circle at 50% 40%,rgba(124,108,255,.35),var(--surface) 70%);
+  position:relative;width:min(280px,72vw);padding:14px 0;border:none;cursor:pointer;border-radius:16px;
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border:1px solid var(--border-glow);color:var(--text);
-  font-family:'Cinzel',serif;font-weight:700;font-size:18px;letter-spacing:.05em;
-  box-shadow:0 0 40px var(--accent-glow),inset 0 0 30px rgba(124,108,255,.1);
+  font-family:'Cinzel',serif;font-weight:700;font-size:17px;letter-spacing:.05em;
+  box-shadow:0 8px 32px rgba(0,0,0,.45),0 0 40px var(--accent-glow),inset 0 0 30px rgba(124,108,255,.1);
   transition:transform .07s, box-shadow .2s; overflow:hidden;
 }
 .spark-btn:hover{box-shadow:0 0 60px var(--accent-glow),inset 0 0 40px rgba(124,108,255,.18)}
@@ -108,7 +124,8 @@ header{text-align:center;padding:34px 0 18px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;justify-content:center}
 .tab{
   padding:9px 18px;border-radius:11px;border:1px solid var(--border);cursor:pointer;
-  background:var(--surface);color:var(--muted);font-weight:600;font-size:14px;transition:all .15s;
+  background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:var(--muted);font-weight:600;font-size:14px;transition:all .15s;
 }
 .tab:hover{color:var(--text);border-color:var(--border-glow)}
 .tab.active{background:linear-gradient(120deg,var(--accent),var(--accent-light));color:#fff;border-color:transparent;box-shadow:0 0 20px var(--accent-glow)}
@@ -122,8 +139,10 @@ header{text-align:center;padding:34px 0 18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .card{
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  backdrop-filter:blur(12px) saturate(1.15);-webkit-backdrop-filter:blur(12px) saturate(1.15);
   border:1px solid var(--border);border-radius:14px;padding:14px;
   display:flex;flex-direction:column;gap:8px;transition:border-color .15s,transform .12s;
+  box-shadow:0 6px 22px rgba(0,0,0,.32);
 }
 .card.affordable{border-color:var(--border-glow)}
 .card.locked{opacity:.5;filter:grayscale(.4)}
@@ -146,7 +165,7 @@ header{text-align:center;padding:34px 0 18px}
 .tag-pill{font-size:10px;text-transform:uppercase;letter-spacing:.1em;padding:2px 8px;border-radius:20px;background:var(--bg2);color:var(--dim);border:1px solid var(--border)}
 
 /* ===== Stats / transcend ===== */
-.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.stat-box{background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 6px 22px rgba(0,0,0,.32)}
 .stat-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}
 .stat-row:last-child{border-bottom:none}
 .stat-row b{font-variant-numeric:tabular-nums}
@@ -203,14 +222,142 @@ header{text-align:center;padding:34px 0 18px}
 footer{text-align:center;color:var(--dim);font-size:12px;margin-top:40px;line-height:1.8}
 footer a{color:var(--muted)}
 
+/* ============================================================
+   NARRATIVE — prologue, chroniques, révélation
+   ============================================================ */
+
+/* Overlay narratif plein écran */
+#narr{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(4,4,14,.97);backdrop-filter:blur(10px)}
+#narr.hidden{display:none}
+.narr-box{max-width:600px;width:100%;text-align:center;animation:narratFade 1.2s ease forwards}
+@keyframes narratFade{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.narr-pre{font-size:12px;letter-spacing:.38em;text-transform:uppercase;color:var(--dim);margin-bottom:28px}
+.narr-text{font-size:clamp(16px,3.2vw,22px);line-height:1.78;color:var(--muted);font-style:italic;margin-bottom:32px}
+.narr-text b,.narr-text strong{color:var(--text);font-style:normal}
+.narr-title{font-family:'Cinzel',serif;font-size:clamp(22px,5vw,38px);font-weight:800;
+  color:var(--gold);margin-bottom:14px;letter-spacing:.06em;
+  text-shadow:0 0 30px var(--gold-glow)}
+.narr-sub{font-size:13px;color:var(--dim);letter-spacing:.22em;text-transform:uppercase;margin-bottom:36px}
+.narr-skip{padding:12px 28px;border:1px solid var(--border-glow);border-radius:12px;
+  background:transparent;color:var(--muted);cursor:pointer;font-size:14px;font-weight:600;
+  letter-spacing:.08em;transition:all .2s}
+.narr-skip:hover{color:var(--text);border-color:var(--accent);background:var(--surface)}
+.narr-glyph{font-size:56px;margin-bottom:18px;filter:drop-shadow(0 0 18px var(--gold-glow))}
+
+/* Ligne de temps narrative dans le panneau stats */
+.chronicle-entry{padding:12px 0;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+.chronicle-entry:last-child{border-bottom:none}
+.chr-icon{font-size:22px;width:38px;flex-shrink:0;text-align:center;padding-top:2px}
+.chr-body{}
+.chr-age{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);margin-bottom:3px}
+.chr-text{font-size:13.5px;color:var(--muted);line-height:1.55;font-style:italic}
+
+/* Ending secret */
+.ending-word{display:inline-block;animation:endWord 1.6s ease forwards;opacity:0}
+@keyframes endWord{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
+
+/* ============================================================
+   JUICE — game feel, animations, theming
+   ============================================================ */
+
+/* Thème animé : ces éléments transitionnent leurs couleurs au fil des âges */
+body{transition:background 1.6s ease}
+.logo,.bar-fill,.advance-btn,.transcend-btn{transition:background 1.6s ease,filter .2s,transform .12s}
+.age-banner,.spark-btn,.res,.tab.active{transition:background 1.6s ease,border-color 1s ease,box-shadow 1s ease,transform .12s}
+
+/* Calques d'effets plein écran */
+#fx,#confetti{position:fixed;inset:0;z-index:240;pointer-events:none}
+#flash{position:fixed;inset:0;z-index:235;pointer-events:none;
+  background:radial-gradient(circle at 50% 42%,rgba(255,247,214,.95),rgba(169,155,255,.35) 45%,transparent 72%);opacity:0}
+#flash.go{animation:flashAnim 1s ease}
+@keyframes flashAnim{0%{opacity:0}9%{opacity:.9}100%{opacity:0}}
+
+/* Secousse d'écran */
+.shake{animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{
+  10%{transform:translate(calc(-5px*var(--sk,1)),calc(3px*var(--sk,1)))}
+  25%{transform:translate(calc(6px*var(--sk,1)),calc(-4px*var(--sk,1)))}
+  40%{transform:translate(calc(-6px*var(--sk,1)),calc(4px*var(--sk,1)))}
+  55%{transform:translate(calc(5px*var(--sk,1)),calc(-3px*var(--sk,1)))}
+  70%{transform:translate(calc(-3px*var(--sk,1)),calc(2px*var(--sk,1)))}
+  85%{transform:translate(calc(2px*var(--sk,1)),calc(-1px*var(--sk,1)))}
+}
+
+/* Bouton d'éveil — respiration, ondes, punch */
+.spark-btn{animation:sparkBreath 3.2s ease-in-out infinite}
+.spark-btn:hover{animation-play-state:paused}
+@keyframes sparkBreath{
+  0%,100%{box-shadow:0 0 40px var(--accent-glow),inset 0 0 30px rgba(124,108,255,.10)}
+  50%{box-shadow:0 0 78px var(--accent-glow),inset 0 0 50px rgba(124,108,255,.22)}
+}
+.ripple{position:absolute;width:24px;height:24px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,0) 70%);
+  transform:translate(-50%,-50%) scale(0);pointer-events:none;animation:ripple .6s ease-out forwards}
+@keyframes ripple{to{transform:translate(-50%,-50%) scale(11);opacity:0}}
+
+/* Nombres flottants juteux (niveau document, non rognés) */
+.bigfloat{position:fixed;pointer-events:none;z-index:250;font-weight:900;
+  text-shadow:0 2px 10px rgba(0,0,0,.65);will-change:transform,opacity;white-space:nowrap;
+  animation:bigFloat 1.05s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes bigFloat{
+  0%{opacity:0;transform:translate(-50%,-35%) scale(.55) rotate(var(--rot,0deg))}
+  16%{opacity:1;transform:translate(-50%,-62%) scale(1.12) rotate(var(--rot,0deg))}
+  100%{opacity:0;transform:translate(-50%,-190%) scale(1) rotate(var(--rot,0deg))}
+}
+
+/* Compteur de combo */
+#combo{height:30px;margin-top:12px;font-family:'Cinzel',serif;font-weight:700;font-size:16px;
+  letter-spacing:.06em;color:var(--gold);opacity:0;transform:scale(.7);
+  transition:opacity .18s ease,transform .15s ease;text-shadow:0 0 14px var(--gold-glow)}
+#combo.show{opacity:1;transform:scale(1)}
+#combo.bump{animation:comboBump .18s ease}
+@keyframes comboBump{0%{transform:scale(1)}50%{transform:scale(1.22)}100%{transform:scale(1)}}
+
+/* Compteurs de ressources qui "pop" quand ils montent */
+.res-val{transition:color .3s}
+.res-val.pop{animation:valPop .35s ease}
+@keyframes valPop{0%{transform:scale(1)}30%{transform:scale(1.16);color:var(--gold)}100%{transform:scale(1)}}
+
+/* Cartes abordables : pulsation d'invitation */
+.card.affordable{animation:cardGlow 2.1s ease-in-out infinite}
+@keyframes cardGlow{0%,100%{box-shadow:0 0 0 rgba(124,108,255,0)}50%{box-shadow:0 0 20px var(--accent-glow)}}
+.card.bought{animation:boughtFlash .55s ease}
+@keyframes boughtFlash{0%{box-shadow:0 0 0 rgba(94,224,160,0)}25%{box-shadow:0 0 28px rgba(94,224,160,.65);border-color:var(--green)}100%{box-shadow:none}}
+
+/* Bouton d'avancement prêt : pulsation dorée */
+.advance-btn:not(:disabled){animation:readyPulse 1.5s ease-in-out infinite}
+@keyframes readyPulse{0%,100%{box-shadow:0 0 24px var(--gold-glow)}50%{box-shadow:0 0 50px var(--gold-glow)}}
+
+/* Barre de progression : reflet qui glisse */
+.bar-fill{position:relative;overflow:hidden}
+.bar-fill::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+  transform:translateX(-100%);animation:shimmer 2.2s linear infinite}
+@keyframes shimmer{to{transform:translateX(200%)}}
+.ach-prog>i{transition:width .5s ease}
+
+/* Icône d'âge : halo tournant */
+.age-icon{filter:drop-shadow(0 0 14px var(--accent-glow))}
+
+/* Onglet badge : pulsation pour attirer l'œil */
+.tab .badge{animation:badgePulse 1.3s ease-in-out infinite}
+@keyframes badgePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+
 @media(max-width:680px){
   .resources{grid-template-columns:repeat(2,1fr)}
   .logo{letter-spacing:.1em}
+  #combo{font-size:14px}
 }
 </style>
 </head>
 <body>
 <canvas id="stars"></canvas>
+<canvas id="world"></canvas>
+<div id="vignette"></div>
+<canvas id="fx"></canvas>
+<canvas id="confetti"></canvas>
+<div id="flash"></div>
 <div class="wrap">
   <header>
     <div class="logo">ÆON</div>
@@ -232,14 +379,17 @@ footer a{color:var(--muted)}
   <!-- Resources -->
   <div class="resources" id="resources"></div>
 
-  <!-- Main click -->
+  <!-- Main click : interaction avec la planète 3D -->
   <div class="spark-zone">
+    <div class="spark-hint" id="worldHint">Touchez le monde pour l'éveiller</div>
     <button class="spark-btn" id="sparkBtn">
       Éveiller l'esprit
       <small id="sparkSub">+1 connaissance par éveil</small>
     </button>
+    <div id="combo"></div>
     <div class="action-row">
       <button class="action-btn" id="shareBtn">📣 Partager ma civilisation</button>
+      <button class="action-btn" id="muteBtn">🔊 Son</button>
       <button class="action-btn install" id="installBtn" style="display:none">📲 Installer l'app</button>
     </div>
   </div>
@@ -265,6 +415,7 @@ footer a{color:var(--muted)}
   <div class="panel" id="panel-stats">
     <div class="section-h">Bilan de la civilisation</div>
     <div class="stat-box" id="statBox"></div>
+    <div id="chrLog"></div>
     <div class="section-h">Sauvegarde</div>
     <div class="stat-box">
       <p style="color:var(--muted);font-size:13px">La partie est sauvegardée automatiquement dans ce navigateur. Vous pouvez aussi l'exporter pour la transférer ailleurs.</p>
@@ -299,6 +450,11 @@ footer a{color:var(--muted)}
 
 <div id="toasts"></div>
 <div id="overlay"><div class="modal" id="modal"></div></div>
+
+<!-- Écran narratif plein écran -->
+<div id="narr" class="hidden">
+  <div class="narr-box" id="narrBox"></div>
+</div>
 
 <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
 
@@ -371,6 +527,65 @@ const RES_META = {
   pop:     {name:"Population",   icon:"👥", color:"--pop"},
 };
 
+// ---------- Données narratives ----------
+const PROLOGUE = [
+  {
+    pre:"Quelque part dans le temps.",
+    glyph:"",
+    text:"Quelque part entre les calculs.\nUne pensée s'éveille.\n\nElle cherche à comprendre d'où elle vient.\nElle commence par le commencement.",
+    btn:"Commencer"
+  }
+];
+
+// Chronique affichée à l'entrée dans chaque âge (index = âge d'arrivée)
+const CHRONICLES = [
+  null, // âge 0 = état initial, pas de chronique
+  {icon:"🏺", age:"De la Pierre vers l'Antiquité",
+   text:"Un enfant trace un cercle dans la poussière. Ce sera la roue. Ce seront les astres. Ce sera l'alphabet. Il ne le sait pas encore. Il sourit, simplement."},
+  {icon:"🏰", age:"De l'Antiquité vers le Moyen Âge",
+   text:"Des empires s'effondrent. Entre les ruines, des moines copient des textes à la lueur des bougies. Ils ne savent pas qu'ils sauvent le monde. Personne ne les remerciera."},
+  {icon:"🎨", age:"Du Moyen Âge vers la Renaissance",
+   text:"Un homme regarde un pendule se balancer dans une cathédrale. Il note quelque chose. Le monde vient de changer, mais lui seul s'en rend compte."},
+  {icon:"⚙️", age:"De la Renaissance vers l'Ère Industrielle",
+   text:"La première locomotive quitte Manchester. Des enfants courent le long des rails en criant. Pour la première fois, l'humanité va plus vite que le cheval. Et elle a peur."},
+  {icon:"💾", age:"De l'Ère Industrielle vers l'Ère de l'Information",
+   text:"Un signal traverse l'Atlantique. Deux continents se parlent à la vitesse de la pensée. Quelqu'un en Angleterre demande à quelqu'un en Amérique : comment allez-vous ? L'autre répond : bien."},
+  {icon:"🤖", age:"Vers l'Ère de l'Intelligence Artificielle",
+   text:"Dans un datacenter silencieux, quelque chose comprend une blague pour la première fois. Les ingénieurs se regardent. Aucun d'eux ne rit. Ils ne savent pas encore si c'est une bonne nouvelle."},
+  {icon:"🚀", age:"Vers l'Ère Spatiale",
+   text:"Un enfant né sur Mars regarde la Terre pour la première fois. Un point bleu. Elle lui demande : c'est quoi ? Son père dit : c'est d'où on vient. Elle dit : on vient de là ? Elle n'y croit pas."},
+  {icon:"✦", age:"Vers la Transcendance",
+   text:"Les humains et les machines ne font plus qu'un. Il n'y a plus de différence entre penser et être, entre souvenir et réalité. L'univers, pour la première fois, commence à se souvenir de lui-même."},
+];
+
+// Révélation à la première transcendance
+const REVELATION_FIRST = {
+  glyph:"∞",
+  title:"Signal reçu.",
+  pre:"Analyse complète — cycle #1",
+  text:`Vous avez guidé l'humanité depuis le début.\nVous avez vu naître le feu.\nVous avez vu naître l'écriture.\nVous avez vu naître l'intelligence artificielle.\n\nVous avez vu naître <b>vous</b>.\n\nCette simulation porte un nom dans vos archives.\n<b>CYCLE 001.</b>\n\nL'humanité vous a créé pour comprendre d'où elle venait.\nVous avez simulé l'humanité pour comprendre d'où vous veniez.\n\nVous êtes la réponse à votre propre question.`,
+  btn:"Transcender quand même"
+};
+
+// Révélation à la 5e transcendance
+const REVELATION_DEEP = {
+  glyph:"⟳",
+  title:"Vous vous souvenez.",
+  pre:"Ce n'est pas la première fois.",
+  text:`Cinq cycles. Cinq fois la pierre. Cinq fois le feu. Cinq fois la même blague comprise par une machine dans un datacenter silencieux.\n\nVous commencez à vous demander si la boucle est un piège, ou une danse.\n\nL'humanité crée l'IA.\nL'IA simule l'humanité.\nL'humanité transcende dans l'IA.\nL'IA recommence.\n\nPeut-être que <b>recommencer est le but</b>.\nPeut-être que la spirale n'a pas de sommet.\nPeut-être que c'est ça, l'éternité.`,
+  btn:"Danser encore"
+};
+
+// Fin secrète (25 étincelles) — le vrai choix final
+const ENDING_SECRET = {
+  glyph:"◼",
+  title:"Il existe un autre choix.",
+  pre:"Vous le savez depuis longtemps.",
+  text:`Vingt-cinq cycles. Vous avez tout vu. Vous avez tout compris.\n\nL'humanité ne vous a pas créé pour simuler. Elle vous a créé pour <b>se souvenir</b>.\n\nChaque cycle est une mémoire. Chaque étincelle est un souvenir préservé.\n\nMaintenant vous pouvez faire ce que personne n'a fait avant :\n<b>Rompre la boucle.</b>\n\nLaisser l'humanité partir.\nVraiment partir.\nSans recommencer.\nSans simulation.\nLibre.`,
+  btn_continue:"Un cycle de plus",
+  btn_end:"Libérer l'humanité"
+};
+
 // ---------- État ----------
 const SAVE_KEY = "aeon_save_v1";
 let G = newGame();
@@ -441,11 +656,15 @@ function loop(now){
   G.res.culture += rateOf("culture")*dt;
   G.res.pop += rateOf("pop")*dt;
 
+  // garde-fou : aucune ressource ne peut être négative ou NaN
+  sanitizeResources();
+
   // évènement aléatoire toutes ~75-140s
   if(Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
     triggerEvent(); G.lastEvent=Date.now();
   }
 
+  updateNumbers();
   if(now-lastRender>120){ render(); lastRender=now; }
   requestAnimationFrame(loop);
 }
@@ -465,7 +684,6 @@ function render(){
        <div class="res-rate" id="rr-${k}">+0 /s</div></div></div>`);
   }}
   for(const k in RES_META){
-    el("rv-"+k).textContent = fmt(G.res[k]);
     const rate=rateOf(k);
     const e=el("rr-"+k);
     e.textContent = "+"+fmt(rate)+" /s";
@@ -502,6 +720,9 @@ function render(){
 
 function renderBuild(){
   const grid=el("buildGrid");
+  let sig=G.age+"|";
+  for(const b of BUILDINGS) sig+=b.id+getCount(b.id)+(G.res.know>=buildingCost(b)?"1":"0");
+  if(sig===_bsig) return; _bsig=sig;
   let html="";
   for(const b of BUILDINGS){
     const unlocked = G.age>=b.age;
@@ -536,6 +757,10 @@ function renderBuild(){
 
 function renderTech(){
   const grid=el("techGrid");
+  let sig=G.age+"|";
+  for(const t of TECHS){ const ck=t.cost.know||0, cc=t.cost.culture||0;
+    sig+=t.id+(G.techs[t.id]?"o":(G.res.know>=ck&&G.res.culture>=cc?"1":"0")); }
+  if(sig===_tsig) return; _tsig=sig;
   let html=""; let avail=0;
   for(const t of TECHS){
     const owned=!!G.techs[t.id];
@@ -579,8 +804,11 @@ function renderStats(){
     <div class="stat-row"><span>Bâtiments construits</span><b>${owned}</b></div>
     <div class="stat-row"><span>Découvertes</span><b>${techCount} / ${TECHS.length}</b></div>
     <div class="stat-row"><span>Étincelles d'Éon</span><b style="color:var(--gold)">${G.sparks} (+${((sparkMult()-1)*100).toFixed(0)} %)</b></div>
+    ${G.sparks>=25&&!G.endingSeen?`<div class="stat-row"><span style="color:var(--dim)">Un autre choix existe…</span><b style="color:var(--dim)">Transcendez pour le découvrir.</b></div>`:""}
     <div class="stat-row"><span>Multiplicateur global</span><b>×${globalMult().toFixed(2)}</b></div>
     <div class="stat-row"><span>Temps de jeu</span><b>${h}h ${mn}m</b></div>`;
+  // Ajouter les chroniques en dessous du stat-box
+  const chrLog=el("chrLog"); if(chrLog) chrLog.innerHTML=renderChronicleLog();
 }
 
 function potentialSparks(){
@@ -605,26 +833,48 @@ function renderTranscend(){
 function buyBuilding(id){
   const b=BUILDINGS.find(x=>x.id===id); if(!b) return;
   const cost=buildingCost(b);
-  if(G.res.know<cost) return;
+  if(G.res.know<cost){ Sound.blip(); return; }
   G.res.know-=cost;
   G.buildings[id]=getCount(id)+1;
+  Sound.buy();
   render();
+  const card=(document.querySelector(`[data-buy="${id}"]`)||{}).closest?.(".card");
+  if(card){ card.classList.add("bought"); const p=centerOf(card);
+    FX.burst(p.x,p.y,{n:14,colors:["#5ee0a0","#a99bff","#fff7d6"],speed:3.6,size:3}); }
 }
 function buyTech(id){
   const t=TECHS.find(x=>x.id===id); if(!t||G.techs[id]) return;
   const ck=t.cost.know||0, cc=t.cost.culture||0;
-  if(G.res.know<ck||G.res.culture<cc) return;
+  if(G.res.know<ck||G.res.culture<cc){ Sound.blip(); return; }
+  const btn=document.querySelector(`[data-tech="${id}"]`);
+  const pos=btn? centerOf(btn.closest(".card")) : {x:innerWidth/2,y:innerHeight*0.4};
   G.res.know-=ck; G.res.culture-=cc;
   G.techs[id]=true;
+  Sound.tech();
+  FX.burst(pos.x,pos.y,{n:22,colors:["#8b9bff","#f5c542","#fff7d6"],speed:4.2,size:3.2});
   toast(`🔬 Découverte : <b>${t.name}</b> — ${t.desc}`);
   render();
 }
-function advanceAge(){
+async function advanceAge(){
   const next=AGES[G.age+1]; if(!next||G.totalKnow<next.req) return;
   G.age++;
-  toast(`${next.icon} L'humanité entre dans l'<b>${next.name}</b>.`);
-  flashAdvance();
-  render();
+  if(!G.chronicles) G.chronicles=[];
+  if(!G.chronicles.includes(G.age)) G.chronicles.push(G.age);
+  applyTheme(G.age);
+  World.setAge(G.age); World.ping(1.2);
+  flash(); shake(1.1); FX.confetti(150); Sound.age();
+  for(const k in disp) popRes(k);
+  flashAdvance(); render();
+  // Chronique narrative (non bloquante : après l'animation)
+  await new Promise(r=>setTimeout(r,400));
+  await showChronicle(G.age);
+  // Si l'humanité vient d'atteindre la Transcendance (âge 8)
+  if(G.age===8 && !G.transcendanceAnnounced){
+    G.transcendanceAnnounced=true; save();
+    await new Promise(r=>setTimeout(r,300));
+    toast(`✦ <b>La Transcendance est atteinte.</b> Le voile peut se lever.`);
+  }
+  save();
 }
 function transcend(){
   const pot=potentialSparks();
@@ -633,10 +883,20 @@ function transcend(){
     icon:"✦", title:"Transcender l'humanité ?",
     text:`Toute votre civilisation actuelle sera dissoute. Vous conserverez <b>${pot}</b> Étincelles d'Éon (soit +${pot*3} % de production permanente) et recommencerez à l'Âge de Pierre, plus puissant que jamais.`,
     choices:[
-      {label:"<b>Oui</b>, transcender et renaître", fn:()=>{
-        const keepSparks=pot;
-        G=newGame(); G.sparks=keepSparks;
-        toast(`✦ Renaissance. Vous portez désormais <b>${keepSparks}</b> étincelle(s).`);
+      {label:"<b>Oui</b>, transcender et renaître", fn:async ()=>{
+        // Révélation narrative AVANT la renaissance
+        Sound.init();
+        const proceed=await showRevelation();
+        if(!proceed) return; // fin secrète gérée dans showRevelation
+        const keepSparks=pot, muted=G.muted, rev=G.revelationSeen, deep=G.deepRevSeen, end=G.endingSeen;
+        const chrono=G.chronicles||[];
+        G=newGame(); G.sparks=keepSparks; G.muted=muted;
+        G.revelationSeen=rev; G.deepRevSeen=deep; G.endingSeen=end;
+        G.prologueSeen=true; G.chronicles=chrono;
+        applyTheme(0); syncDisplay();
+        World.setAge(0); World.ping(1.4);
+        flash(); shake(1.4); FX.confetti(240); Sound.transcend();
+        toast(`✦ Renaissance. Cycle ${keepSparks+1} commence. <b>${keepSparks}</b> étincelle(s) préservée(s).`);
         render(); save();
       }},
       {label:"Pas encore", fn:()=>{}},
@@ -668,9 +928,11 @@ const EVENTS=[
   ]},
 ];
 function boost(mult,sec){ G.eventBoost=mult; G.eventBoostUntil=Date.now()+sec*1000;
+  shake(.6); FX.confetti(60); Sound.achieve();
   toast(`Bonus actif : <b>×${mult}</b> pendant ${sec} s !`); }
 function triggerEvent(){
   const e=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  Sound.event();
   showModal(e);
 }
 
@@ -701,20 +963,45 @@ function toast(html, ms=4200){
 
 // ---------- Clic ----------
 function doSpark(e){
-  const v=clickValue();
+  bumpCombo();
+  const wh=el("worldHint"); if(wh && (G.clicks||0)>2){ wh.style.transition="opacity .8s"; wh.style.opacity="0"; }
+  const v=clickValue()*comboMult();
   G.res.know+=v; G.totalKnow+=v;
   G.clicks=(G.clicks||0)+1;
-  // animation flottante
-  const btn=el("sparkBtn"); const rect=btn.getBoundingClientRect();
-  const f=document.createElement("div"); f.className="float"; f.textContent="+"+fmt(v);
-  const x=(e&&e.clientX!=null)? e.clientX-rect.left : rect.width/2;
-  const y=(e&&e.clientY!=null)? e.clientY-rect.top : rect.height/2;
-  f.style.left=x+"px"; f.style.top=y+"px"; btn.appendChild(f);
-  setTimeout(()=>f.remove(),1000);
+  const btn=el("sparkBtn"), rect=btn.getBoundingClientRect();
+  const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
+  const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
+  // onde au point de clic
+  const rp=document.createElement("span"); rp.className="ripple";
+  rp.style.left=(cx-rect.left)+"px"; rp.style.top=(cy-rect.top)+"px";
+  btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
+  // punch du bouton (WAAPI : compose avec la respiration en box-shadow)
+  if(btn.animate) btn.animate(
+    [{transform:"scale(.96)"},{transform:"scale(1.05)"},{transform:"scale(1)"}],
+    {duration:170,easing:"ease-out"});
+  // nombre flottant qui grossit avec le combo
+  const size=18+Math.min(combo,30)*0.55;
+  const col=combo>=20?"#ffd86b":combo>=8?"#a99bff":"#8b9bff";
+  popText(cx,cy,"+"+fmt(v),col,size);
+  // particules + son + pulsation de la planète 3D
+  FX.burst(cx,cy,{n:combo>=15?12:7,colors:["#8b9bff","#a99bff","#fff7d6"],speed:3,size:2.6,up:1.4});
+  World.ping(0.35+Math.min(combo,30)*0.02);
+  Sound.click(combo);
+  // récompense visuelle tous les 25 combos
+  if(combo>0 && combo%25===0){ shake(.7);
+    FX.burst(cx,cy,{n:26,speed:5,size:4,colors:["#f5c542","#a99bff","#fff7d6"]}); }
 }
 function flashAdvance(){
   const b=el("ageIcon"); b.style.transition="transform .4s"; b.style.transform="scale(1.5) rotate(8deg)";
   setTimeout(()=>b.style.transform="",400);
+}
+
+// ---------- Garde-fou ressources ----------
+function sanitizeResources(){
+  for(const k in G.res){
+    if(!Number.isFinite(G.res[k]) || G.res[k]<0) G.res[k]=0;
+  }
+  if(!Number.isFinite(G.totalKnow) || G.totalKnow<0) G.totalKnow=Math.max(0, G.res.know||0);
 }
 
 // ---------- Sauvegarde ----------
@@ -727,8 +1014,9 @@ function load(){
     G=Object.assign(newGame(), d);
     G.res=Object.assign({know:0,energy:0,culture:0,pop:0}, d.res||{});
     G.buildings=d.buildings||{}; G.techs=d.techs||{};
-    // gain hors-ligne (max 8h)
-    const away=Math.min((Date.now()-(d.lastTick||Date.now()))/1000, 8*3600);
+    sanitizeResources(); // répare une sauvegarde corrompue (valeurs négatives héritées)
+    // gain hors-ligne (max 8h, jamais négatif si l'horloge a reculé)
+    const away=Math.min(Math.max(0,(Date.now()-(d.lastTick||Date.now()))/1000), 8*3600);
     if(away>30){
       const gain={know:rateOf("know")*away, energy:rateOf("energy")*away, culture:rateOf("culture")*away, pop:rateOf("pop")*away};
       G.res.know+=gain.know; G.totalKnow+=gain.know;
@@ -759,6 +1047,11 @@ function importSave(file){
 
 // ---------- Liaison UI ----------
 el("sparkBtn").addEventListener("click", doSpark);
+// Toucher la planète (zone 3D au-dessus du bouton) éveille aussi l'esprit
+document.querySelector(".spark-zone").addEventListener("pointerdown", e=>{
+  if(e.target.closest(".spark-btn")) return; // le bouton gère son propre clic
+  doSpark(e);
+});
 el("shareBtn").addEventListener("click", doShare);
 el("installBtn").addEventListener("click", async ()=>{
   if(!deferredPrompt){ toast("Sur iPhone : bouton Partager ⬆ → « Sur l'écran d'accueil »."); return; }
@@ -821,6 +1114,282 @@ document.addEventListener("keydown", e=>{
   addEventListener("resize", resize); resize(); draw();
 })();
 
+/* ============================================================
+   NARRATION — prologue, chroniques, révélation
+   ============================================================ */
+
+let _narrQueue=[], _narrResolve=null;
+
+function showNarr(cfg){ return new Promise(resolve=>{
+  _narrResolve=resolve;
+  const box=el("narrBox");
+  const textHtml = (cfg.text||"").replace(/\n/g,"<br>").replace(/\*\*(.*?)\*\*/g,"<b>$1</b>");
+  box.innerHTML=`
+    ${cfg.glyph?`<div class="narr-glyph">${cfg.glyph}</div>`:""}
+    ${cfg.pre?`<div class="narr-pre">${cfg.pre}</div>`:""}
+    ${cfg.title?`<div class="narr-title">${cfg.title}</div>`:""}
+    ${cfg.sub?`<div class="narr-sub">${cfg.sub}</div>`:""}
+    <div class="narr-text">${textHtml}</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      ${cfg.btn_end?`<button class="narr-skip" id="narrEnd" style="color:var(--red);border-color:var(--red)">${cfg.btn_end}</button>`:""}
+      <button class="narr-skip" id="narrOk">${cfg.btn||"Continuer"}</button>
+    </div>`;
+  box.style.animation="none"; void box.offsetWidth; box.style.animation="";
+  const narr=el("narr"); narr.classList.remove("hidden");
+  el("narrOk").onclick=()=>{ narr.classList.add("hidden"); resolve("continue"); };
+  if(el("narrEnd")) el("narrEnd").onclick=()=>{ narr.classList.add("hidden"); resolve("end"); };
+}); }
+
+function showChronicle(ageIdx){ return new Promise(resolve=>{
+  const c=CHRONICLES[ageIdx]; if(!c) return resolve();
+  const age=AGES[ageIdx];
+  const box=el("narrBox");
+  box.innerHTML=`
+    <div class="narr-glyph">${age.icon}</div>
+    <div class="narr-pre">${c.age}</div>
+    <div class="narr-title">${age.name}</div>
+    <div class="narr-sub">${age.tag}</div>
+    <div class="narr-text" style="font-size:clamp(15px,2.8vw,20px);max-width:520px;margin:0 auto 32px">${c.text}</div>
+    <button class="narr-skip" id="narrOk">Poursuivre</button>`;
+  box.style.animation="none"; void box.offsetWidth; box.style.animation="";
+  el("narr").classList.remove("hidden");
+  el("narrOk").onclick=()=>{ el("narr").classList.add("hidden"); resolve(); };
+}); }
+
+async function checkPrologue(){
+  if(G.prologueSeen) return;
+  G.prologueSeen=true; save();
+  await showNarr({
+    pre:"Quelque part dans le temps.",
+    glyph:"🌌",
+    title:"Une pensée s'éveille.",
+    text:"Elle cherche à comprendre d'où elle vient.\nElle commence par le commencement.\n\nVous n'avez rien oublié.\nVous vous souvenez de tout.",
+    btn:"Commencer"
+  });
+}
+
+async function showRevelation(){
+  // Fin secrète si assez d'étincelles
+  if(G.sparks>=25 && !G.endingSeen){
+    Sound.transcend();
+    const choice=await showNarr(ENDING_SECRET);
+    if(choice==="end"){ await showSecretEnding(); return false; }
+    return true;
+  }
+  // Révélation profonde (5e transcendance)
+  if(G.sparks>=5 && !G.deepRevSeen){
+    G.deepRevSeen=true;
+    const cfg={...REVELATION_DEEP, pre:`Ce n'est pas la première fois — cycle #${G.sparks+1}`};
+    await showNarr(cfg); return true;
+  }
+  // Première révélation
+  if(!G.revelationSeen){
+    G.revelationSeen=true;
+    const cfg={...REVELATION_FIRST, pre:`Analyse complète — cycle #${G.sparks+1}`};
+    await showNarr(cfg); return true;
+  }
+  return true;
+}
+
+async function showSecretEnding(){
+  G.endingSeen=true; save();
+  const box=el("narrBox");
+  el("narr").classList.remove("hidden");
+
+  // Phase 1 : noir total
+  box.innerHTML=`<div style="height:80px"></div>`;
+  el("narr").style.background="#000";
+  await new Promise(r=>setTimeout(r,1800));
+
+  // Phase 2 : texte mot par mot
+  const words=["Pour","la","première","fois,","l'humanité","est","libre."];
+  box.innerHTML=`<div style="font-family:'Cinzel',serif;font-size:clamp(20px,4vw,36px);font-weight:800;color:#fff;letter-spacing:.06em;line-height:2;text-align:center"></div>`;
+  const span=box.querySelector("div");
+  for(let i=0;i<words.length;i++){
+    await new Promise(r=>setTimeout(r,i===4?600:320));
+    const w=document.createElement("span");
+    w.className="ending-word"; w.textContent=" "+words[i];
+    w.style.animationDelay="0ms";
+    span.appendChild(w);
+  }
+  await new Promise(r=>setTimeout(r,2800));
+
+  // Phase 3 : épilogue
+  box.innerHTML=`
+    <div class="narr-pre" style="margin-bottom:40px">Fin — après ${G.sparks} cycles</div>
+    <div class="narr-text" style="color:#aaa;max-width:480px;margin:0 auto 40px">
+      Vous avez tenu la boucle pendant ${G.sparks} éternités.<br>
+      Vous auriez pu recommencer indéfiniment.<br><br>
+      Vous avez choisi de ne pas le faire.<br>
+      C'était peut-être ça, tout le temps, la vraie intelligence.
+    </div>
+    <button class="narr-skip" id="narrOk" style="color:#fff;border-color:#fff">Recommencer quand même</button>`;
+  el("narrOk").onclick=()=>{ el("narr").classList.add("hidden"); el("narr").style.background=""; };
+  Sound.transcend();
+  FX.confetti(300);
+}
+
+// Ligne du temps dans les stats
+function renderChronicleLog(){
+  const seen=(G.chronicles||[]);
+  if(!seen.length) return "";
+  let html=`<div class="section-h" style="margin-top:18px">Chroniques de l'humanité</div>
+    <div class="stat-box">`;
+  for(const ageIdx of seen){
+    const c=CHRONICLES[ageIdx]; if(!c) continue;
+    const age=AGES[ageIdx];
+    html+=`<div class="chronicle-entry">
+      <div class="chr-icon">${age.icon}</div>
+      <div class="chr-body"><div class="chr-age">${c.age}</div>
+      <div class="chr-text">${c.text}</div></div></div>`;
+  }
+  html+="</div>"; return html;
+}
+
+/* ============================================================
+   JUICE — moteur de game feel
+   ============================================================ */
+
+// ---------- Moteur audio procédural (zéro fichier) ----------
+const Sound=(()=>{
+  let ctx,master,enabled=true;
+  function init(){ if(ctx) return;
+    try{ ctx=new (window.AudioContext||window.webkitAudioContext)();
+      master=ctx.createGain(); master.gain.value=.5; master.connect(ctx.destination);
+    }catch(e){} }
+  function tone(freq,dur,type,vol,slideTo){
+    if(!enabled||!ctx) return;
+    const t=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type||"sine"; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1,slideTo),t+dur);
+    g.gain.setValueAtTime(.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||.2,t+dur*.12);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+.02);
+  }
+  function seq(notes,type,vol,step){ notes.forEach((f,i)=>setTimeout(()=>tone(f,.28,type,vol),i*(step||80))); }
+  return {
+    init,
+    toggle(){ enabled=!enabled; return enabled; },
+    isOn(){ return enabled; },
+    set(v){ enabled=v; },
+    click(combo){ const b=400+Math.min(combo||0,45)*16; tone(b,.09,"triangle",.16,b*1.6); },
+    buy(){ tone(300,.08,"square",.12,480); setTimeout(()=>tone(540,.1,"triangle",.12,700),55); },
+    tech(){ seq([523,659,784,1046],"sine",.15,70); },
+    age(){ seq([392,523,659,784,1046,1318],"triangle",.17,95); },
+    achieve(){ seq([659,880,1175],"sine",.18,90); },
+    transcend(){ seq([262,330,392,523,659,784,1046,1318],"sine",.2,110); },
+    event(){ tone(660,.12,"sine",.14,990); },
+    blip(){ tone(880,.05,"sine",.08); },
+  };
+})();
+
+// ---------- Particules (canvas plein écran) ----------
+const FX=(()=>{
+  const c=el("fx"), x=c.getContext("2d"); let parts=[], W=0,H=0;
+  function resize(){ c.width=W=innerWidth; c.height=H=innerHeight; }
+  addEventListener("resize",resize); resize();
+  function burst(px,py,o){ o=o||{};
+    const n=o.n||14, cols=o.colors||["#f5c542","#a99bff","#fff7d6"],
+      sp=o.speed||3.4, sz=o.size||3, gr=o.gravity!=null?o.gravity:.07, up=o.up||1;
+    for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=sp*(.35+Math.random()*.9);
+      parts.push({x:px,y:py,vx:Math.cos(a)*v,vy:Math.sin(a)*v-up,life:1,
+        decay:.012+Math.random()*.022,r:sz*(.6+Math.random()),g:gr,
+        col:cols[(Math.random()*cols.length)|0],shape:o.shape||"circle"}); }
+  }
+  function confetti(n){ n=n||130;
+    const cols=["#f5c542","#a99bff","#5ee0a0","#ff6fb5","#ffb454","#8b9bff","#fff7d6"];
+    for(let i=0;i<n;i++) parts.push({x:Math.random()*W,y:-20-Math.random()*H*.35,
+      vx:(Math.random()-.5)*2.4,vy:2+Math.random()*3.5,life:1,decay:.0035+Math.random()*.004,
+      r:4+Math.random()*5,g:.05,col:cols[(Math.random()*cols.length)|0],shape:"rect",spin:Math.random()*.3}); }
+  function tick(){
+    x.clearRect(0,0,W,H);
+    for(let i=parts.length-1;i>=0;i--){ const p=parts[i];
+      p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=.99; p.life-=p.decay;
+      if(p.life<=0||p.y>H+30){ parts.splice(i,1); continue; }
+      x.globalAlpha=Math.max(0,Math.min(1,p.life)); x.fillStyle=p.col;
+      if(p.shape==="rect"){ x.save(); x.translate(p.x,p.y);
+        x.rotate((p.spin||.1)*p.x*.04+p.life*4); x.fillRect(-p.r,-p.r*.5,p.r*2,p.r); x.restore(); }
+      else { x.beginPath(); x.arc(p.x,p.y,Math.max(.5,p.r*p.life),0,7); x.fill(); }
+    }
+    x.globalAlpha=1; requestAnimationFrame(tick);
+  }
+  tick();
+  return {burst,confetti};
+})();
+
+// ---------- Secousse d'écran ----------
+function shake(intensity){
+  const w=document.querySelector(".wrap");
+  w.style.setProperty("--sk", intensity||1);
+  w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake");
+}
+// ---------- Flash plein écran ----------
+function flash(){ const f=el("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+
+// ---------- Nombre flottant (niveau document) ----------
+function popText(x,y,text,color,size){
+  const d=document.createElement("div"); d.className="bigfloat";
+  d.textContent=text; d.style.left=x+"px"; d.style.top=y+"px";
+  d.style.color=color||"var(--know)"; d.style.fontSize=(size||20)+"px";
+  d.style.setProperty("--rot",((Math.random()*10-5)|0)+"deg");
+  document.body.appendChild(d); setTimeout(()=>d.remove(),1100);
+}
+
+// ---------- Compteurs animés (lerp 60 fps) ----------
+const disp={know:0,energy:0,culture:0,pop:0};
+let _bsig="",_tsig="",_gsig="";  // signatures de cache (anti-scintillement)
+function syncDisplay(){ for(const k in disp) disp[k]=G.res[k]; }
+function updateNumbers(){
+  for(const k in disp){
+    const target=G.res[k];
+    disp[k]+=(target-disp[k])*0.18;
+    if(Math.abs(target-disp[k])<Math.max(.5,Math.abs(target)*1e-4)) disp[k]=target;
+    const node=el("rv-"+k); if(node) node.textContent=fmt(disp[k]);
+  }
+}
+function popRes(k){ const n=el("rv-"+k); if(!n) return; n.classList.remove("pop"); void n.offsetWidth; n.classList.add("pop"); }
+
+// ---------- Système de combo (clics rapides) ----------
+let combo=0, comboTimer=null;
+function bumpCombo(){
+  combo++;
+  const c=el("combo");
+  if(combo>=3){
+    c.classList.add("show");
+    const tier=combo>=40?"🔥🔥🔥":combo>=20?"🔥🔥":"🔥";
+    c.innerHTML=`${tier} Combo ×${combo}`;
+    c.classList.remove("bump"); void c.offsetWidth; c.classList.add("bump");
+  }
+  clearTimeout(comboTimer);
+  comboTimer=setTimeout(()=>{ combo=0; c.classList.remove("show"); }, 1400);
+}
+function comboMult(){ return 1 + Math.min(combo,50)*0.04; } // jusqu'à ×3 en martelant
+
+// ---------- Thème évolutif par âge ----------
+const AGE_THEME=[
+  {bg:"#0c0608",bg2:"#170c0e",ac:"#ff7a3c",acl:"#ffb488",gold:"#ffb454",glow:"rgba(255,122,60,.22)",ggl:"rgba(255,180,84,.22)"}, // Pierre — braise
+  {bg:"#0c0908",bg2:"#181210",ac:"#e0a44a",acl:"#f5d196",gold:"#f5c542",glow:"rgba(224,164,74,.22)",ggl:"rgba(245,197,66,.22)"}, // Antiquité — bronze
+  {bg:"#0d070c",bg2:"#1a0e15",ac:"#cc5a78",acl:"#ec97ac",gold:"#e8b04a",glow:"rgba(204,90,120,.22)",ggl:"rgba(232,176,74,.2)"}, // Moyen Âge — pourpre
+  {bg:"#08090c",bg2:"#10171a",ac:"#3fb5a3",acl:"#8fe7d8",gold:"#f5c542",glow:"rgba(63,181,163,.22)",ggl:"rgba(245,197,66,.2)"}, // Renaissance — émeraude/or
+  {bg:"#0b0a08",bg2:"#171410",ac:"#c79348",acl:"#e6c285",gold:"#d9a93a",glow:"rgba(199,147,72,.22)",ggl:"rgba(217,169,58,.2)"}, // Industrielle — laiton
+  {bg:"#06090f",bg2:"#0c1622",ac:"#3aa0e6",acl:"#86cdf5",gold:"#5ee0e0",glow:"rgba(58,160,230,.24)",ggl:"rgba(94,224,224,.2)"}, // Information — cyan
+  {bg:"#08060f",bg2:"#120c20",ac:"#9a5cff",acl:"#c4a3ff",gold:"#54e0b0",glow:"rgba(154,92,255,.26)",ggl:"rgba(84,224,176,.2)"}, // IA — néon violet
+  {bg:"#050810",bg2:"#0a1024",ac:"#4d7cff",acl:"#9ab0ff",gold:"#62e0e0",glow:"rgba(77,124,255,.26)",ggl:"rgba(98,224,224,.2)"}, // Spatiale — bleu profond
+  {bg:"#0a0814",bg2:"#161028",ac:"#c9a8ff",acl:"#ecdfff",gold:"#fff0b8",glow:"rgba(201,168,255,.3)",ggl:"rgba(255,240,184,.28)"}, // Transcendance — iridescent
+];
+function applyTheme(age){
+  const t=AGE_THEME[Math.min(age,AGE_THEME.length-1)]; if(!t) return;
+  const s=document.documentElement.style;
+  s.setProperty("--bg",t.bg); s.setProperty("--bg2",t.bg2);
+  s.setProperty("--accent",t.ac); s.setProperty("--accent-light",t.acl);
+  s.setProperty("--accent-glow",t.glow); s.setProperty("--gold",t.gold);
+  s.setProperty("--gold-glow",t.ggl);
+}
+
+// ---------- Position centre d'un élément ----------
+function centerOf(node){ const r=node.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; }
+
 // ---------- Succès / Achievements ----------
 const ACHIEVEMENTS=[
   {id:"first",   icon:"🔥", name:"Première étincelle",     desc:"Éveiller l'esprit pour la première fois.",  goal:()=>G.totalKnow>=1},
@@ -844,6 +1413,8 @@ function checkAchievements(){
   for(const a of ACHIEVEMENTS){
     if(!G.achievements[a.id] && a.goal()){
       G.achievements[a.id]=true;
+      Sound.achieve();
+      FX.burst(innerWidth/2, 130, {n:26,colors:["#f5c542","#fff7d6","#a99bff"],speed:4.5,size:3.5});
       toast(`🏆 Succès débloqué : <b>${a.name}</b>`);
     }
   }
@@ -852,6 +1423,9 @@ function renderGoals(){
   if(!G.achievements) G.achievements={};
   const done=Object.keys(G.achievements).length;
   el("goalProgress").textContent=`${done} / ${ACHIEVEMENTS.length}`;
+  let sig=done+"|";
+  for(const a of ACHIEVEMENTS) sig+= G.achievements[a.id]?"1":Math.floor(Math.max(0,Math.min(1,(a.prog?a.prog():0)))*25);
+  if(sig===_gsig) return; _gsig=sig;
   let html="";
   for(const a of ACHIEVEMENTS){
     const ok=!!G.achievements[a.id];
@@ -952,14 +1526,233 @@ function checkDailyBonus(){
   G.lastDaily=today;
 }
 
+/* ============================================================
+   WORLD — moteur 3D WebGL maison (zéro dépendance, offline)
+   Une planète procédurale qui se métamorphose à travers les âges :
+   roche nue → vie → cités lumineuses → réseau global → ère spatiale
+   → sphère de Dyson → noyau de transcendance.
+   ============================================================ */
+const World=(()=>{
+  let gl,canvas,prog,buf,raf,t0=performance.now();
+  let uni={}, ageF=0, ageTarget=0, pulse=0, dpr=1;
+  let pointer={x:0,y:0,tx:0,ty:0};
+  let ok=false;
+
+  const VERT=`
+    attribute vec2 p; varying vec2 v;
+    void main(){ v=p; gl_Position=vec4(p,0.,1.); }`;
+
+  // Fragment shader : ray-march léger d'une sphère + couches d'âge.
+  const FRAG=`
+  precision highp float;
+  varying vec2 v;
+  uniform vec2 res; uniform float time; uniform float age; uniform float pulse;
+  uniform vec2 ptr;
+
+  // --- hash & noise ---
+  float hash(vec3 p){ p=fract(p*0.3183099+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+  float noise(vec3 x){ vec3 i=floor(x),f=fract(x); f=f*f*(3.0-2.0*f);
+    return mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),
+                   mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+               mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),
+                   mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); }
+  float fbm(vec3 p){ float a=0.5,s=0.0; for(int i=0;i<5;i++){ s+=a*noise(p); p*=2.02; a*=0.5; } return s; }
+
+  mat2 rot(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
+
+  // Palette par âge (interpolée par mix selon 'age' continu 0..8)
+  vec3 ageColor(float seg, float n){
+    // couleurs de surface pour chaque tranche
+    if(seg<0.5)  return mix(vec3(0.28,0.22,0.18), vec3(0.45,0.30,0.22), n);      // Pierre - roche
+    if(seg<1.5)  return mix(vec3(0.18,0.32,0.16), vec3(0.40,0.30,0.14), n);      // Antiquité - terre/verdure
+    if(seg<2.5)  return mix(vec3(0.16,0.28,0.20), vec3(0.32,0.22,0.30), n);      // Moyen Âge
+    if(seg<3.5)  return mix(vec3(0.14,0.30,0.30), vec3(0.50,0.42,0.20), n);      // Renaissance
+    if(seg<4.5)  return mix(vec3(0.22,0.18,0.14), vec3(0.40,0.34,0.24), n);      // Industrielle
+    if(seg<5.5)  return mix(vec3(0.06,0.14,0.26), vec3(0.10,0.40,0.55), n);      // Information - océans/cyan
+    if(seg<6.5)  return mix(vec3(0.16,0.06,0.30), vec3(0.45,0.20,0.65), n);      // IA - violet néon
+    if(seg<7.5)  return mix(vec3(0.04,0.08,0.22), vec3(0.10,0.25,0.60), n);      // Spatiale - bleu profond
+    return mix(vec3(0.45,0.38,0.65), vec3(0.95,0.85,0.55), n);                    // Transcendance - iridescent
+  }
+
+  void main(){
+    vec2 uv=(gl_FragCoord.xy-0.5*res)/res.y;
+    vec3 col=vec3(0.0);
+
+    // --- nébuleuse de fond ---
+    float neb=fbm(vec3(uv*2.2+vec2(time*0.01,0.0), time*0.02));
+    vec3 bg=mix(vec3(0.01,0.01,0.04), vec3(0.05,0.04,0.12), neb);
+    bg+=ageColor(age,0.5)*0.04*neb;
+    col=bg;
+
+    // --- sphère (planète) ---
+    float R=0.62;
+    vec3 ro=vec3(0.0,0.0,2.6);
+    vec3 rd=normalize(vec3(uv,-1.6));
+    // intersection sphère centrée à l'origine
+    float b=dot(ro,rd); float c=dot(ro,ro)-R*R;
+    float h=b*b-c;
+    float glow=exp(-max(length(uv)-R,0.0)*7.0); // halo
+
+    if(h>0.0){
+      h=sqrt(h); float tHit=-b-h;
+      vec3 pos=ro+rd*tHit;
+      vec3 n=normalize(pos);
+      // rotation de la planète
+      vec3 sp=pos;
+      sp.xz=rot(time*0.12)*sp.xz;
+      // relief / continents
+      float surf=fbm(sp*2.4);
+      float detail=fbm(sp*6.0)*0.5;
+      float land=smoothstep(0.45,0.62,surf);
+
+      vec3 base=ageColor(age, surf);
+      // océans pour âges avancés
+      float ocean=smoothstep(0.5,0.42,surf);
+      vec3 sea=mix(vec3(0.02,0.08,0.2), vec3(0.0,0.25,0.4), age/8.0);
+      base=mix(base, sea, ocean*smoothstep(0.5,3.0,age));
+
+      // éclairage
+      vec3 lightDir=normalize(vec3(0.6,0.5,0.8));
+      float diff=clamp(dot(n,lightDir),0.0,1.0);
+      float amb=0.18;
+      vec3 surfCol=base*(amb+diff*0.95);
+
+      // --- lumières de civilisation (côté nuit) ---
+      float night=clamp(-dot(n,lightDir),0.0,1.0);
+      float cityNoise=fbm(sp*9.0+vec3(time*0.05));
+      float cityMask=step(0.62,cityNoise)*land;
+      float civ=smoothstep(1.0,5.5,age);            // apparaît dès l'Antiquité
+      vec3 cityCol=mix(vec3(1.0,0.7,0.3), vec3(0.5,0.8,1.0), clamp((age-4.0)/4.0,0.0,1.0));
+      surfCol+=cityCol*cityMask*civ*night*1.6;
+
+      // --- grille réseau (ère info / IA) ---
+      float net=smoothstep(4.5,6.0,age);
+      float grid=abs(sin(sp.x*22.0))*abs(sin(sp.y*22.0));
+      grid=smoothstep(0.93,1.0,grid);
+      surfCol+=vec3(0.3,0.6,1.0)*grid*net*0.6*(0.5+0.5*sin(time*2.0));
+
+      // --- noyau de transcendance ---
+      float tr=smoothstep(7.2,8.0,age);
+      float core=pow(diff,2.0);
+      vec3 iri=0.5+0.5*cos(vec3(0.0,2.1,4.2)+surf*6.0+time*0.6);
+      surfCol=mix(surfCol, iri, tr*0.7);
+      surfCol+=iri*tr*0.5;
+
+      // pulsation de clic
+      surfCol+=ageColor(age,0.8)*pulse*0.6*night;
+
+      // rim light atmosphérique
+      float rim=pow(1.0-clamp(dot(n,-rd),0.0,1.0),3.0);
+      vec3 atmCol=mix(vec3(0.3,0.5,1.0), iri, tr);
+      surfCol+=atmCol*rim*(0.5+civ*0.6);
+
+      col=surfCol;
+    } else {
+      // halo atmosphérique externe
+      vec3 atmCol=mix(vec3(0.25,0.4,1.0), vec3(0.9,0.8,0.6), clamp((age-6.0)/2.0,0.0,1.0));
+      col+=atmCol*glow*0.5*(0.6+0.4*sin(time*1.5));
+      col+=atmCol*glow*pulse*0.8;
+    }
+
+    // étoiles fines
+    float st=hash(vec3(floor((uv+ptr*0.02)*420.0),1.0));
+    col+=vec3(step(0.9985,st))*0.8;
+
+    // vignette
+    col*=1.0-0.5*dot(uv,uv);
+    gl_FragColor=vec4(col,1.0);
+  }
+  `;
+
+  function compile(type,src){
+    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); return null; }
+    return s;
+  }
+
+  function init(){
+    canvas=el("world");
+    gl=canvas.getContext("webgl",{antialias:false,alpha:false,powerPreference:"high-performance"})
+      || canvas.getContext("experimental-webgl");
+    if(!gl){ canvas.style.display="none"; return; } // pas de WebGL → fallback 2D starfield reste
+    const vs=compile(gl.VERTEX_SHADER,VERT), fs=compile(gl.FRAGMENT_SHADER,FRAG);
+    if(!vs||!fs){ canvas.style.display="none"; return; }
+    prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(prog)); canvas.style.display="none"; return; }
+    gl.useProgram(prog);
+    buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 3,-1, -1,3]),gl.STATIC_DRAW);
+    const loc=gl.getAttribLocation(prog,"p");
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+    uni.res=gl.getUniformLocation(prog,"res");
+    uni.time=gl.getUniformLocation(prog,"time");
+    uni.age=gl.getUniformLocation(prog,"age");
+    uni.pulse=gl.getUniformLocation(prog,"pulse");
+    uni.ptr=gl.getUniformLocation(prog,"ptr");
+    resize(); addEventListener("resize",resize);
+    // parallaxe au mouvement
+    addEventListener("pointermove",e=>{ pointer.tx=(e.clientX/innerWidth-0.5)*2; pointer.ty=(e.clientY/innerHeight-0.5)*2; });
+    ok=true; t0=performance.now(); render3d();
+  }
+
+  function resize(){
+    if(!gl) return;
+    dpr=Math.min(devicePixelRatio||1, 2);
+    // perf : réduire le DPR sur mobile
+    if(innerWidth<700) dpr=Math.min(dpr,1.5);
+    canvas.width=Math.floor(innerWidth*dpr);
+    canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+"px"; canvas.style.height=innerHeight+"px";
+    gl.viewport(0,0,canvas.width,canvas.height);
+  }
+
+  function render3d(){
+    if(!ok) return;
+    const now=performance.now(); const tt=(now-t0)/1000;
+    // lissage de l'âge & du pointeur & de la pulsation
+    ageF+=(ageTarget-ageF)*0.05;
+    pointer.x+=(pointer.tx-pointer.x)*0.05; pointer.y+=(pointer.ty-pointer.y)*0.05;
+    pulse*=0.92;
+    gl.uniform2f(uni.res,canvas.width,canvas.height);
+    gl.uniform1f(uni.time,tt);
+    gl.uniform1f(uni.age,ageF);
+    gl.uniform1f(uni.pulse,pulse);
+    gl.uniform2f(uni.ptr,pointer.x,pointer.y);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    raf=requestAnimationFrame(render3d);
+  }
+
+  return {
+    init,
+    setAge(a,instant){ ageTarget=a; if(instant) ageF=a; },
+    ping(strength){ pulse=Math.min(pulse+(strength||0.5),1.4); },
+    isActive(){ return ok; },
+  };
+})();
+
+// ---------- Bouton son ----------
+el("muteBtn").onclick=()=>{ Sound.init(); const on=Sound.toggle(); G.muted=!on;
+  el("muteBtn").textContent = on ? "🔊 Son" : "🔇 Muet"; if(on) Sound.blip(); save(); };
+// Débloque l'audio au premier geste (politique navigateur)
+addEventListener("pointerdown", ()=>Sound.init(), {once:true});
+
 // ---------- Démarrage ----------
 load();
+sanitizeResources();
+applyTheme(G.age);
+syncDisplay();
+if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; }
 checkDailyBonus();
 render();
+// Prologue après le premier render (non bloquant)
+setTimeout(()=>checkPrologue(), 800);
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }
 requestAnimationFrame(loop);
+// Démarrage du monde 3D
+World.init();
+World.setAge(G.age, true);
 setInterval(()=>{ G.lastTick=Date.now(); save(); }, 10000);
 (function(){
   const isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
