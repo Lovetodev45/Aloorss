@@ -854,44 +854,92 @@ const NEWS_BY_AGE=[
 // ---------- Données : Bâtiments ----------
 // res: ressource produite | base: coût en connaissance | rate: prod/s par unité | age: âge min d'apparition
 const BUILDINGS = [
+  // --- Âge de Pierre ---
   {id:"feu",     name:"Feu de camp",       icon:"🔥", res:"know",    base:15,    rate:.2,   age:0, desc:"Autour des flammes naissent les premières idées."},
   {id:"tribu",   name:"Tribu",             icon:"👥", res:"pop",     base:60,    rate:.05,  age:0, desc:"Plus de mains, plus d'esprits. La population multiplie tout."},
+  {id:"silex",   name:"Tailleur de silex", icon:"🪨", res:"energy",  base:130,   rate:.18,  age:0, desc:"Le premier outil. Tout le reste en découle."},
   {id:"champ",   name:"Champ cultivé",     icon:"🌾", res:"know",    base:240,   rate:1,    age:0, desc:"L'agriculture libère du temps pour penser."},
+  {id:"totem",   name:"Totem",             icon:"🗿", res:"culture", base:500,   rate:.3,   age:0, desc:"Les premiers symboles. Les premiers mythes."},
+  // --- Antiquité ---
   {id:"temple",  name:"Temple",            icon:"⛩️", res:"culture", base:900,   rate:.5,   age:1, desc:"La culture donne un sens au monde."},
+  {id:"forge",   name:"Forge",             icon:"⚒️", res:"energy",  base:1.8e3, rate:2.4,  age:1, desc:"Le bronze, puis le fer. La matière obéit."},
   {id:"ecole",   name:"École",             icon:"📜", res:"know",    base:3.2e3, rate:6,    age:1, desc:"Le savoir se transmet et s'accumule."},
+  {id:"biblio",  name:"Bibliothèque",      icon:"📚", res:"know",    base:1.4e4, rate:20,   age:1, desc:"Tout ce que l'humanité sait, en un lieu."},
+  // --- Moyen Âge ---
   {id:"moulin",  name:"Moulin",            icon:"🌀", res:"energy",  base:1.1e4, rate:3,    age:2, desc:"Capter le vent et l'eau : l'énergie au service de l'humain."},
   {id:"cite",    name:"Cité",              icon:"🏙️", res:"pop",     base:4.5e4, rate:.6,   age:2, desc:"Des millions vivent et créent ensemble."},
+  {id:"cathedrale",name:"Cathédrale",      icon:"⛪", res:"culture", base:9e4,   rate:11,   age:2, desc:"La foi élève la pierre vers le ciel."},
+  {id:"universite",name:"Université",      icon:"🎓", res:"know",    base:3e5,   rate:95,   age:2, desc:"Le savoir devient une institution."},
+  // --- Renaissance ---
   {id:"atelier", name:"Atelier d'artiste", icon:"🖌️", res:"culture", base:1.6e5, rate:14,   age:3, desc:"La Renaissance fait jaillir le génie."},
+  {id:"caravelle",name:"Caravelle",        icon:"⛵", res:"pop",     base:5e5,   rate:5,    age:3, desc:"Le monde s'ouvre. Les cartes se remplissent."},
+  {id:"banque",  name:"Banque",            icon:"🏦", res:"know",    base:1.5e6, rate:260,  age:3, desc:"L'argent circule, le progrès accélère."},
+  // --- Ère Industrielle ---
   {id:"usine",   name:"Usine à vapeur",    icon:"🏭", res:"energy",  base:9e5,   rate:60,   age:4, desc:"La production de masse change l'échelle de tout."},
+  {id:"rail",    name:"Chemin de fer",     icon:"🚂", res:"pop",     base:3.5e6, rate:36,   age:4, desc:"Relier les villes, c'est relier les destins."},
   {id:"labo",    name:"Laboratoire",       icon:"⚗️", res:"know",    base:5e6,   rate:420,  age:4, desc:"La méthode scientifique industrialise la découverte."},
+  {id:"telegraphe",name:"Télégraphe",      icon:"📡", res:"culture", base:1.4e7, rate:2400, age:4, desc:"L'information voyage enfin sans cheval."},
+  // --- Ère de l'Information ---
   {id:"serveur", name:"Centre de données", icon:"🖥️", res:"know",    base:8e7,   rate:5200, age:5, desc:"Le savoir mondial, accessible en un instant."},
+  {id:"satellite",name:"Satellite",        icon:"🛰️", res:"energy",  base:1.8e8, rate:4.4e4,age:5, desc:"Un œil dans le ciel, un relais pour tous."},
   {id:"reseau",  name:"Réseau social",     icon:"🌐", res:"culture", base:3e8,   rate:9000, age:5, desc:"La culture devient virale et planétaire."},
+  {id:"fibre",   name:"Réseau de fibre",   icon:"🔌", res:"know",    base:9e8,   rate:4.6e4,age:5, desc:"La lumière elle-même transporte la pensée."},
+  // --- Ère de l'IA ---
   {id:"ia",      name:"Intelligence Art.", icon:"🧠", res:"know",    base:6e9,   rate:1.4e5,age:6, desc:"Une intelligence qui s'améliore elle-même."},
+  {id:"robot",   name:"Armée de robots",   icon:"🤖", res:"pop",     base:2e10,  rate:1.1e4,age:6, desc:"La main-d'œuvre ne dort plus jamais."},
   {id:"fusion",  name:"Réacteur à fusion", icon:"☀️", res:"energy",  base:4e10,  rate:9e5,  age:6, desc:"De l'énergie quasi illimitée, comme une étoile en cage."},
-  {id:"colonie", name:"Colonie orbitale",  icon:"🛰️", res:"pop",     base:2.2e11,rate:340,  age:7, desc:"L'humanité essaime parmi les étoiles."},
+  {id:"quantique",name:"Calculateur quantique",icon:"⚛️",res:"know", base:1.6e11,rate:1.2e6,age:6, desc:"Penser tous les possibles à la fois."},
+  // --- Ère Spatiale ---
+  {id:"colonie", name:"Colonie orbitale",  icon:"🪐", res:"pop",     base:2.2e11,rate:340,  age:7, desc:"L'humanité essaime parmi les étoiles."},
+  {id:"ascenseur",name:"Ascenseur spatial",icon:"🛗", res:"energy",  base:8e11,  rate:4.2e6,age:7, desc:"Un fil tendu entre la Terre et le vide."},
   {id:"dyson",   name:"Sphère de Dyson",   icon:"🌟", res:"energy",  base:1.5e12,rate:1.6e7,age:7, desc:"Capturer la puissance entière d'un soleil."},
+  {id:"minage",  name:"Astéroïdes miniers",icon:"☄️", res:"know",    base:4e12,  rate:9e6,  age:7, desc:"Les richesses du système solaire, à portée."},
+  // --- Transcendance ---
   {id:"esprit",  name:"Esprit-ruche",      icon:"✦",  res:"know",    base:9e12,  rate:6e7,  age:8, desc:"Des milliards de consciences, une seule pensée."},
+  {id:"vortex",  name:"Trou de ver",       icon:"🌀", res:"energy",  base:3e13,  rate:4e8,  age:8, desc:"Plier l'espace. Le « loin » n'existe plus."},
+  {id:"galaxie", name:"Conscience galactique",icon:"🌌",res:"culture",base:6e13,  rate:5e8,  age:8, desc:"La galaxie entière se met à rêver."},
 ];
 
 // ---------- Données : Découvertes (technologies) ----------
 // cost en {know, culture}. effect: fonction renvoyant un multiplicateur appliqué.
 // kind: "global" | ressource | building id
+// `group` = Doctrine : au sein d'un même groupe, UNE SEULE peut être choisie (les autres se verrouillent).
+// → vrai choix stratégique, rejouable autrement à chaque transcendance.
 const TECHS = [
   {id:"roue",     name:"La Roue",            icon:"🛞", age:0, cost:{know:200},                 kind:"global",  mult:1.15, desc:"+15 % à toute la production."},
+  {id:"feu_maitrise",name:"Maîtrise du feu", icon:"🔥", age:0, cost:{know:600},                 kind:"energy",  mult:2,    desc:"×2 production d'énergie."},
+  // DOCTRINE Antiquité : Chasseurs vs Cueilleurs
+  {id:"chasse",   name:"Voie du Chasseur",   icon:"🏹", age:1, cost:{know:1500}, group:"doctrine_anc", mult:2.2, kind:"energy", desc:"×2,2 énergie. La force avant tout."},
+  {id:"cueillette",name:"Voie du Cueilleur", icon:"🌿", age:1, cost:{know:1500}, group:"doctrine_anc", mult:2.2, kind:"know",   desc:"×2,2 connaissance. La patience avant tout."},
   {id:"ecriture", name:"L'Écriture",         icon:"✍️", age:1, cost:{know:2000},                kind:"know",    mult:2,    desc:"×2 production de connaissance."},
   {id:"loi",      name:"Code de lois",       icon:"⚖️", age:1, cost:{know:6000,culture:80},     kind:"pop",     mult:2,    desc:"×2 croissance de la population."},
+  {id:"monnaie",  name:"La Monnaie",         icon:"🪙", age:1, cost:{know:9000,culture:200},    kind:"global",  mult:1.2,  desc:"+20 % à toute la production."},
+  // DOCTRINE Moyen Âge : Foi vs Raison
+  {id:"foi",      name:"L'Âge de Foi",       icon:"⛪", age:2, cost:{know:3e4,culture:400}, group:"doctrine_med", mult:3, kind:"culture", desc:"×3 culture. Le sens guide la main."},
+  {id:"raison",   name:"L'Âge de Raison",    icon:"🔭", age:2, cost:{know:3e4,culture:400}, group:"doctrine_med", mult:2.4, kind:"know", desc:"×2,4 connaissance. Le doute éclaire."},
+  {id:"guilde",   name:"Les Guildes",        icon:"⚒️", age:2, cost:{know:5e4},                 kind:"energy",  mult:2.5,  desc:"×2,5 production d'énergie."},
   {id:"imprimerie",name:"L'Imprimerie",      icon:"📚", age:3, cost:{know:9e4,culture:600},     kind:"know",    mult:2.5,  desc:"×2,5 production de connaissance."},
   {id:"perspective",name:"La Perspective",   icon:"🖼️", age:3, cost:{know:2.4e5},               kind:"culture", mult:3,    desc:"×3 production de culture."},
+  {id:"navigation",name:"La Navigation",     icon:"🧭", age:3, cost:{know:4e5,culture:1e3},     kind:"pop",     mult:2.5,  desc:"×2,5 croissance de la population."},
+  // DOCTRINE Industrielle : Capital vs Travailleurs
+  {id:"capital",  name:"Le Capitalisme",     icon:"💰", age:4, cost:{know:3e6}, group:"doctrine_ind", mult:1.6, kind:"global", desc:"+60 % à TOUT. La croissance avant tout."},
+  {id:"ouvrier",  name:"Mouvement ouvrier",  icon:"✊", age:4, cost:{know:3e6}, group:"doctrine_ind", mult:3.5, kind:"pop",    desc:"×3,5 population. Le nombre fait la force."},
   {id:"vapeur",   name:"Machine à vapeur",   icon:"♨️", age:4, cost:{know:1.4e6},               kind:"energy",  mult:3,    desc:"×3 production d'énergie."},
   {id:"electricite",name:"L'Électricité",    icon:"⚡", age:4, cost:{know:8e6,culture:5e3},     kind:"global",  mult:1.4,  desc:"+40 % à toute la production."},
   {id:"internet", name:"L'Internet",         icon:"🕸️", age:5, cost:{know:1.5e8},               kind:"know",    mult:3,    desc:"×3 production de connaissance."},
   {id:"smartphone",name:"Le Smartphone",     icon:"📱", age:5, cost:{know:5e8,culture:2e6},     kind:"culture", mult:4,    desc:"×4 production de culture."},
   {id:"renouvelable",name:"Énergies vertes", icon:"🍃", age:5, cost:{know:9e8},                 kind:"energy",  mult:4,    desc:"×4 production d'énergie."},
+  {id:"reseaux_n",name:"Mondialisation",     icon:"🌐", age:5, cost:{know:2e9,culture:1e7},     kind:"global",  mult:1.5,  desc:"+50 % à toute la production."},
   {id:"ml",       name:"Apprentissage prof.",icon:"🧬", age:6, cost:{know:1.2e10},              kind:"global",  mult:1.8,  desc:"+80 % à toute la production."},
   {id:"agi",      name:"Intelligence générale",icon:"🌌",age:6, cost:{know:8e10,culture:1e9},   kind:"know",    mult:5,    desc:"×5 production de connaissance."},
+  // DOCTRINE IA : Fusionner vs Servir
+  {id:"fusion_ia",name:"Fusion homme-machine",icon:"🧠",age:6, cost:{know:2e11}, group:"doctrine_ia", mult:6, kind:"know", desc:"×6 connaissance. Devenir l'IA."},
+  {id:"servir_ia",name:"IA au service",      icon:"🦾", age:6, cost:{know:2e11}, group:"doctrine_ia", mult:4, kind:"global", desc:"+300 % à TOUT. L'IA reste un outil."},
   {id:"antimatiere",name:"Antimatière",      icon:"💥", age:7, cost:{know:6e11},                kind:"energy",  mult:6,    desc:"×6 production d'énergie."},
   {id:"terraform",name:"Terraformation",     icon:"🪐", age:7, cost:{know:2e12,culture:5e10},   kind:"pop",     mult:5,    desc:"×5 croissance de la population."},
+  {id:"warp",     name:"Distorsion spatiale",icon:"🌀", age:7, cost:{know:8e12},                kind:"global",  mult:2,    desc:"×2 à toute la production."},
   {id:"singularite",name:"La Singularité",   icon:"♾️", age:8, cost:{know:2e13,culture:1e12},   kind:"global",  mult:3,    desc:"×3 à TOUTE la production. Le saut final."},
+  {id:"omega",    name:"Point Oméga",        icon:"✦",  age:8, cost:{know:1e14,culture:1e13},   kind:"global",  mult:4,    desc:"×4 à TOUT. La convergence finale."},
 ];
 
 const RES_META = {
@@ -1325,7 +1373,7 @@ function renderTech(){
   const grid=el("techGrid");
   let sig=G.age+"|";
   for(const t of TECHS){ const ck=t.cost.know||0, cc=t.cost.culture||0;
-    sig+=t.id+(G.techs[t.id]?"o":(G.res.know>=ck&&G.res.culture>=cc?"1":"0")); }
+    sig+=t.id+(G.techs[t.id]?"o":doctrineLocked(t)?"x":(G.res.know>=ck&&G.res.culture>=cc?"1":"0")); }
   if(sig===_tsig) return; _tsig=sig;
   let html=""; let avail=0;
   for(const t of TECHS){
@@ -1337,17 +1385,19 @@ function renderTech(){
         <div><div class="card-title">???</div><div class="card-sub">Recherche de l'${AGES[t.age].name}</div></div></div></div>`;
       continue;
     }
+    const locked=doctrineLocked(t);
     const ck=t.cost.know||0, cc=t.cost.culture||0;
-    const can = !owned && G.res.know>=ck && G.res.culture>=cc;
+    const can = !owned && !locked && G.res.know>=ck && G.res.culture>=cc;
     if(can) avail++;
     const costStr = (ck?`🧠 ${fmt(ck)} `:"") + (cc?`✨ ${fmt(cc)}`:"");
-    html+=`<div class="card ${owned?'owned-tech':can?'affordable':''}">
+    const doctrineTag = t.group ? `<span class="tag-pill" style="color:var(--accent-light);border-color:var(--accent)">⚖ doctrine</span>` : "";
+    html+=`<div class="card ${owned?'owned-tech':locked?'locked':can?'affordable':''}">
       <div class="card-head"><div class="card-ic">${t.icon}</div>
         <div style="flex:1"><div class="card-title">${t.name}</div>
         <div class="card-sub">${AGES[t.age].name}</div></div>
-        ${owned?'<span class="tag-pill" style="color:var(--green);border-color:var(--green)">acquis</span>':''}</div>
-      <div class="card-desc">${t.desc}</div>
-      ${owned?'':`<div class="card-foot"><span class="cost ${can?'ok':'no'}">${costStr}</span>
+        ${owned?'<span class="tag-pill" style="color:var(--green);border-color:var(--green)">acquis</span>':doctrineTag}</div>
+      <div class="card-desc">${t.desc}${t.group&&!owned&&!locked?'<br><i style="color:var(--accent-light)">Choix exclusif : verrouille l\'autre voie.</i>':''}${locked?'<br><i style="color:var(--dim)">Voie non choisie — verrouillée ce cycle.</i>':''}</div>
+      ${owned||locked?'':`<div class="card-foot"><span class="cost ${can?'ok':'no'}">${costStr}</span>
         <button class="buy" data-tech="${t.id}" ${can?'':'disabled'}>Découvrir</button></div>`}
     </div>`;
   }
@@ -1570,8 +1620,14 @@ function buyBuilding(id){
 }
 // pousse l'état des bâtiments vers la scène 3D
 function syncWorld(){ if(World.isActive()) World.syncBuildings(G.buildings); }
+// Une doctrine est-elle verrouillée ? (un concurrent du même groupe déjà choisi)
+function doctrineLocked(t){
+  if(!t.group) return false;
+  return TECHS.some(x=>x.group===t.group && x.id!==t.id && G.techs[x.id]);
+}
 function buyTech(id){
   const t=TECHS.find(x=>x.id===id); if(!t||G.techs[id]) return;
+  if(doctrineLocked(t)){ Sound.blip(); return; }   // doctrine concurrente déjà choisie
   const ck=t.cost.know||0, cc=t.cost.culture||0;
   if(G.res.know<ck||G.res.culture<cc){ Sound.blip(); return; }
   const btn=document.querySelector(`[data-tech="${id}"]`);
@@ -1580,7 +1636,8 @@ function buyTech(id){
   G.techs[id]=true;
   Sound.tech();
   FX.burst(pos.x,pos.y,{n:22,colors:["#9cc3ff","#c9a44a","#f4e6c0"],speed:4.2,size:3.2});
-  toast(`🔬 Découverte : <b>${t.name}</b> — ${t.desc}`);
+  if(t.group){ shake(.5); toast(`⚖ Doctrine choisie : <b>${t.name}</b>. L'autre voie est scellée pour ce cycle.`); }
+  else toast(`🔬 Découverte : <b>${t.name}</b> — ${t.desc}`);
   render();
 }
 async function advanceAge(){
