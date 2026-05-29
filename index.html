@@ -217,6 +217,15 @@ header{text-align:center;padding:34px 0 18px}
 .modal{max-width:520px;width:100%;background:linear-gradient(180deg,rgba(12,14,26,.92),rgba(16,20,34,.9));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--hair);border-radius:16px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px var(--gold-glow);animation:fade .3s}
 .modal .ev-ic{font-size:46px;text-align:center}
 .modal h3{font-family:'Cinzel',serif;text-align:center;font-size:22px;margin:8px 0 6px;color:var(--gold)}
+/* étiquette + accent de bordure selon le type d'événement */
+.ev-tag{display:inline-block;margin:0 auto 4px;padding:3px 12px;border-radius:20px;font-size:10px;
+  font-weight:700;letter-spacing:.16em;text-transform:uppercase;position:relative;left:50%;transform:translateX(-50%)}
+.ev-tag.crisis{background:rgba(217,138,138,.14);border:1px solid var(--red);color:#f0b0b0}
+.ev-tag.dilemma{background:rgba(143,176,224,.14);border:1px solid var(--accent);color:var(--accent-light)}
+.modal.kind-crisis{border-color:var(--red);box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(217,138,138,.22)}
+.modal.kind-crisis h3{color:#f0b0b0}
+.modal.kind-dilemma{border-color:var(--accent)}
+.modal.kind-dilemma h3{color:var(--accent-light)}
 .modal p{color:var(--muted);text-align:center;font-size:14.5px;margin-bottom:18px}
 .modal .choices{display:flex;flex-direction:column;gap:10px}
 .choice{padding:13px 16px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);color:var(--text);cursor:pointer;text-align:left;transition:all .15s;font-size:14px}
@@ -1323,33 +1332,89 @@ async function showAwakenNarr(gain){
 }
 
 // ---------- Évènements ----------
+// Helpers d'effets — gains "X secondes de production", boosts/malus temporaires.
+function grant(res,sec){ const g=Math.max(0,rateOf(res)*sec); G.res[res]+=g; if(res==="know")G.totalKnow+=g; return g; }
+function spend(res,sec){ const c=Math.max(0,rateOf(res)*sec); G.res[res]=Math.max(0,G.res[res]-c); return c; }
+
+// Chaque événement a un `age` minimal (apparaît à partir de cet âge).
+// kind:"boon" = positif · "dilemma" = arbitrage (coût ET gain) · "crisis" = défi (ralentissement surmontable)
 const EVENTS=[
-  {icon:"💡", title:"Éclair de génie", text:"Un esprit brillant émerge. Comment l'employer ?",
+  // ---- Bienfaits (toujours dispo) ----
+  {kind:"boon",age:0,icon:"💡", title:"Éclair de génie", text:"Un esprit brillant émerge. Comment l'employer ?",
    choices:[
     {label:"<b>Recherche</b> : ×3 connaissance pendant 30 s", fn:()=>boost(3,30)},
-    {label:"<b>Don immédiat</b> : gagner 30 s de connaissance", fn:()=>{G.res.know+=rateOf("know")*30; G.totalKnow+=rateOf("know")*30;}},
+    {label:"<b>Don immédiat</b> : +30 s de connaissance", fn:()=>grant("know",30)},
   ]},
-  {icon:"🎉", title:"Âge d'or culturel", text:"Les arts fleurissent à travers la civilisation.",
+  {kind:"boon",age:1,icon:"🎉", title:"Âge d'or culturel", text:"Les arts fleurissent à travers la civilisation.",
    choices:[
     {label:"<b>Célébrer</b> : ×4 culture pendant 25 s", fn:()=>boost(4,25)},
-    {label:"<b>Stocker</b> : +20 s de culture maintenant", fn:()=>{G.res.culture+=rateOf("culture")*20;}},
+    {label:"<b>Stocker</b> : +20 s de culture", fn:()=>grant("culture",20)},
   ]},
-  {icon:"⚡", title:"Boom démographique", text:"La population explose dans les cités.",
+  {kind:"boon",age:0,icon:"🌟", title:"Découverte fortuite", text:"Un trésor de savoir oublié refait surface.",
    choices:[
-    {label:"<b>Accueillir</b> : +25 s de population", fn:()=>{G.res.pop+=rateOf("pop")*25 + 10;}},
-    {label:"<b>Mobiliser</b> : ×2,5 toute production pendant 20 s", fn:()=>boost(2.5,20)},
-  ]},
-  {icon:"🌟", title:"Découverte fortuite", text:"Un trésor de savoir oublié refait surface.",
-   choices:[
-    {label:"<b>Étudier</b> : +60 s de connaissance", fn:()=>{const g=rateOf("know")*60; G.res.know+=g; G.totalKnow+=g;}},
+    {label:"<b>Étudier</b> : +60 s de connaissance", fn:()=>grant("know",60)},
     {label:"<b>Inspiration</b> : ×3 tout pendant 18 s", fn:()=>boost(3,18)},
+  ]},
+
+  // ---- Dilemmes : chaque option a un COÛT et un GAIN (pas de mauvaise réponse) ----
+  {kind:"dilemma",age:1,icon:"⚖️", title:"Le Grand Marché", text:"Des marchands proposent un pacte. Que privilégiez-vous ?",
+   choices:[
+    {label:"<b>Commerce</b> : +45 s d'énergie, mais −20 s de culture", fn:()=>{grant("energy",45); spend("culture",20);}},
+    {label:"<b>Tradition</b> : +35 s de culture, mais −20 s d'énergie", fn:()=>{grant("culture",35); spend("energy",20);}},
+  ]},
+  {kind:"dilemma",age:2,icon:"⛪", title:"Schisme", text:"La foi et la raison s'affrontent. Vers quoi penchez-vous ?",
+   choices:[
+    {label:"<b>Dogme</b> : +40 s de culture, mais −25 s de connaissance", fn:()=>{grant("culture",40); spend("know",25);}},
+    {label:"<b>Raison</b> : +40 s de connaissance, mais −25 s de culture", fn:()=>{grant("know",40); spend("culture",25);}},
+  ]},
+  {kind:"dilemma",age:4,icon:"🏭", title:"Révolution industrielle", text:"Les usines crachent fumée et profit.",
+   choices:[
+    {label:"<b>Productivisme</b> : ×3 énergie 30 s, mais −30 s de population", fn:()=>{boost(3,30); spend("pop",30);}},
+    {label:"<b>Prudence</b> : +40 s de population, mais pas de boom", fn:()=>grant("pop",40)},
+  ]},
+  {kind:"dilemma",age:6,icon:"🤖", title:"Dépendance à l'IA", text:"Confier la pensée aux machines ?",
+   choices:[
+    {label:"<b>Automatiser</b> : ×4 connaissance 25 s, mais −30 s de culture", fn:()=>{boost(4,25); spend("culture",30);}},
+    {label:"<b>Garder le contrôle</b> : +50 s de culture", fn:()=>grant("culture",50)},
+  ]},
+
+  // ---- Crises : un défi (ralentissement) qu'on choisit d'encaisser ou d'atténuer à un coût ----
+  {kind:"crisis",age:2,icon:"☠️", title:"La Peste Noire", text:"Un fléau ravage les cités. Comment réagir ?",
+   choices:[
+    {label:"<b>Confiner</b> : production ×0,5 pendant 30 s (le savoir survit)", fn:()=>boost(0.5,30)},
+    {label:"<b>Continuer le commerce</b> : −40 s de population, mais aucune perte de rythme", fn:()=>spend("pop",40)},
+  ]},
+  {kind:"crisis",age:3,icon:"🔥", title:"Grand Incendie", text:"Les flammes dévorent une cité entière.",
+   choices:[
+    {label:"<b>Reconstruire vite</b> : −50 s d'énergie, puis ×2 énergie 20 s", fn:()=>{spend("energy",50); boost(2,20);}},
+    {label:"<b>Encaisser</b> : production ×0,6 pendant 25 s", fn:()=>boost(0.6,25)},
+  ]},
+  {kind:"crisis",age:4,icon:"⚔️", title:"La Guerre éclate", text:"Un conflit menace votre civilisation.",
+   choices:[
+    {label:"<b>Mobiliser</b> : −40 s de connaissance, mais ×2 population 25 s", fn:()=>{spend("know",40); boost(2,25);}},
+    {label:"<b>Rester neutre</b> : production ×0,65 pendant 30 s", fn:()=>boost(0.65,30)},
+  ]},
+  {kind:"crisis",age:5,icon:"📉", title:"Crise économique", text:"Les marchés s'effondrent.",
+   choices:[
+    {label:"<b>Plan de relance</b> : −60 s d'énergie, retour rapide à la normale", fn:()=>spend("energy",60)},
+    {label:"<b>Austérité</b> : production ×0,5 pendant 35 s", fn:()=>boost(0.5,35)},
+  ]},
+  {kind:"crisis",age:7,icon:"🌋", title:"Catastrophe orbitale", text:"Une colonie est menacée par un débris géant.",
+   choices:[
+    {label:"<b>Évacuer</b> : −45 s de population, aucune perte de production", fn:()=>spend("pop",45)},
+    {label:"<b>Bouclier d'urgence</b> : −70 s d'énergie, tout est sauvé", fn:()=>spend("energy",70)},
   ]},
 ];
 function boost(mult,sec){ G.eventBoost=mult; G.eventBoostUntil=Date.now()+sec*1000;
-  shake(.6); FX.confetti(60); Sound.achieve();
-  toast(`Bonus actif : <b>×${mult}</b> pendant ${sec} s !`); }
+  const bad=mult<1;
+  if(bad){ shake(.8); Sound.event(); toast(`⚠ Épreuve : production <b>×${mult}</b> pendant ${sec} s.`); }
+  else { shake(.6); FX.confetti(60); Sound.achieve(); toast(`Bonus actif : <b>×${mult}</b> pendant ${sec} s !`); }
+}
 function triggerEvent(){
-  const e=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  // ne propose que les événements adaptés à l'âge atteint
+  const pool=EVENTS.filter(e=>(e.age||0)<=G.age);
+  if(!pool.length) return;
+  const e=pool[Math.floor(Math.random()*pool.length)];
   Sound.event();
   showModal(e);
 }
@@ -1357,13 +1422,16 @@ function triggerEvent(){
 // ---------- Modal ----------
 function showModal(cfg){
   const m=el("modal");
-  m.innerHTML=`<div class="ev-ic">${cfg.icon}</div><h3>${cfg.title}</h3><p>${cfg.text}</p>
+  m.className="modal"+(cfg.kind?" kind-"+cfg.kind:"");   // style selon le type d'événement
+  const tag = cfg.kind==="crisis" ? `<div class="ev-tag crisis">⚠ Crise</div>`
+            : cfg.kind==="dilemma" ? `<div class="ev-tag dilemma">⚖ Dilemme</div>` : "";
+  m.innerHTML=`${tag}<div class="ev-ic">${cfg.icon}</div><h3>${cfg.title}</h3><p>${cfg.text}</p>
     <div class="choices"></div>`;
   const cont=m.querySelector(".choices");
   cfg.choices.forEach(c=>{
     const b=document.createElement("button");
     b.className="choice"; b.innerHTML=c.label;
-    b.onclick=()=>{ c.fn(); closeModal(); render(); };
+    b.onclick=()=>{ c.fn(); sanitizeResources(); closeModal(); render(); };
     cont.appendChild(b);
   });
   el("overlay").classList.add("show");
