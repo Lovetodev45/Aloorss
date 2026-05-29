@@ -178,6 +178,12 @@ header{text-align:center;padding:20px 0 10px}
 .card.affordable{border-color:var(--border-glow)}
 .card.locked{opacity:.5;filter:grayscale(.4)}
 .card.owned-tech{border-color:var(--green);background:linear-gradient(180deg,rgba(52,211,153,.07),var(--surface-2))}
+/* meilleur achat (pour les optimiseurs) */
+.card.bestbuy{border-color:var(--gold)}
+.best-tag{font-size:9px;color:var(--gold-soft);border:1px solid var(--gold);border-radius:10px;
+  padding:1px 6px;letter-spacing:.06em;vertical-align:middle}
+.roi{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums;letter-spacing:.02em;
+  border-top:1px solid var(--hair);padding-top:6px;margin-top:2px}
 .card-head{display:flex;align-items:center;gap:10px}
 .card-ic{font-size:24px;width:40px;height:40px;display:grid;place-items:center;background:rgba(0,0,0,.3);border-radius:10px;border:1px solid var(--hair)}
 .card-title{font-weight:600;font-size:14.5px;letter-spacing:.01em}
@@ -587,6 +593,8 @@ body{transition:background 1.6s ease}
   <div class="panel" id="panel-stats">
     <div class="section-h">Bilan de la civilisation</div>
     <div class="stat-box" id="statBox"></div>
+    <div class="section-h">⚙ Analyse — décomposition des multiplicateurs</div>
+    <div class="stat-box" id="analyseBox"></div>
     <div id="chrLog"></div>
     <div class="section-h">Sauvegarde</div>
     <div class="stat-box">
@@ -1101,11 +1109,30 @@ function render(){
   checkAchievements();
 }
 
+// Production réelle/s d'une unité d'un bâtiment (avec tous les multiplicateurs)
+function buildingPerSec(b){
+  return b.rate * (b.res==="pop"? techMult("pop")*sparkMult()*challengeRewardMult()
+    : globalMult()*techMult(b.res)*(b.res==="know"?challengeKnowMult():1));
+}
+// Efficacité = production de connaissance gagnée par connaissance dépensée (ROI).
+// Pour les bâtiments non-connaissance, on estime via leur contribution indirecte.
+function buildingEfficiency(b){
+  const cost=buildingCost(b); if(cost<=0) return 0;
+  const ps=buildingPerSec(b);
+  // valeur normalisée : connaissance-équivalent/s par connaissance dépensée
+  // (énergie/culture/pop valent moins en direct → léger facteur)
+  const w = b.res==="know"?1 : b.res==="pop"?0.6 : 0.4;
+  return (ps*w)/cost;
+}
 function renderBuild(){
   const grid=el("buildGrid");
   let sig=G.age+"|";
   for(const b of BUILDINGS) sig+=b.id+getCount(b.id)+(G.res.know>=buildingCost(b)?"1":"0");
   if(sig===_bsig) return; _bsig=sig;
+  // détermine le bâtiment le plus efficace parmi ceux débloqués (le "meilleur achat")
+  let bestId=null, bestEff=0;
+  for(const b of BUILDINGS){ if(G.age>=b.age){ const e=buildingEfficiency(b);
+    if(e>bestEff){ bestEff=e; bestId=b.id; } } }
   let html="";
   for(const b of BUILDINGS){
     const unlocked = G.age>=b.age;
@@ -1120,16 +1147,19 @@ function renderBuild(){
     const cost=buildingCost(b);
     const can=G.res.know>=cost;
     const m=RES_META[b.res];
-    const perSec=b.rate * (b.res==="pop"? techMult("pop")*sparkMult() : globalMult()*techMult(b.res));
-    html+=`<div class="card ${can?'affordable':''}">
+    const perSec=buildingPerSec(b);
+    const roi = perSec>0 ? cost/perSec : Infinity;   // temps de rentabilité (s)
+    const best = b.id===bestId;
+    html+=`<div class="card ${can?'affordable':''} ${best?'bestbuy':''}">
       <div class="card-head">
         <div class="card-ic">${b.icon}</div>
         <div style="flex:1">
-          <div class="card-title">${b.name} <span class="owned">×${getCount(b.id)}</span></div>
+          <div class="card-title">${b.name} <span class="owned">×${getCount(b.id)}</span>${best?' <span class="best-tag">★ optimal</span>':''}</div>
           <div class="card-sub">+${fmt(b.rate)} ${m.icon} ${m.name.toLowerCase()} / unité · réel +${fmt(perSec)}/s</div>
         </div>
       </div>
       <div class="card-desc">${b.desc}</div>
+      <div class="roi">⏱ rentable en ${roi===Infinity?'—':fmtTime(Math.ceil(roi))} · efficacité ${(buildingEfficiency(b)*1e6).toFixed(2)}µ</div>
       <div class="card-foot">
         <span class="cost ${can?'ok':'no'}">🧠 ${fmt(cost)}</span>
         <button class="buy" data-buy="${b.id}" ${can?'':'disabled'}>Construire</button>
@@ -1242,8 +1272,25 @@ function renderStats(){
     <div class="stat-row"><span>Étincelles d'Éon</span><b style="color:var(--gold)">${G.sparks} (+${((sparkMult()-1)*100).toFixed(0)} %)</b></div>
     ${(G.singularities||0)>0||(G.awakenings||0)>0?`<div class="stat-row"><span>Singularités ✸</span><b style="color:var(--accent-light)">${G.singularities||0} · ${G.awakenings||0} éveil(s)</b></div>`:""}
     ${G.sparks>=25&&!G.endingSeen?`<div class="stat-row"><span style="color:var(--dim)">Un autre choix existe…</span><b style="color:var(--dim)">Transcendez pour le découvrir.</b></div>`:""}
-    <div class="stat-row"><span>Multiplicateur global</span><b>×${globalMult().toFixed(2)}</b></div>
     <div class="stat-row"><span>Temps de jeu</span><b>${h}h ${mn}m</b></div>`;
+
+  // ----- Analyse : décomposition complète du multiplicateur (pour les optimiseurs) -----
+  const tG=techMult("global"), sp=sparkMult(), pp=popMult(), ev=eventMult(),
+        dg=decreeGlobalMult(), ch=challengeRewardMult(), total=globalMult();
+  const row=(lab,val,hint)=> `<div class="stat-row"><span>${lab}${hint?` <i style="color:var(--dim);font-style:normal">${hint}</i>`:""}</span><b>×${val.toFixed(3)}</b></div>`;
+  const ana=el("analyseBox");
+  if(ana) ana.innerHTML=
+    row("Découvertes (global)",tG,"techs +%")+
+    row("Étincelles d'Éon",sp,`${G.sparks}✦`)+
+    row("Population",pp,`log(pop)`)+
+    row("Décret de Flux",dg,`niv.${decreeLvl("flux")}`)+
+    row("Récompenses d'épreuves",ch)+
+    (ev!==1?row("Bonus temporaire",ev,"actif !"):"")+
+    `<div class="stat-row" style="border-top:1px solid var(--gold);margin-top:4px;padding-top:8px">
+      <span style="color:var(--gold-soft)"><b>MULTIPLICATEUR TOTAL</b></span><b style="color:var(--gold-soft)">×${total.toFixed(2)}</b></div>`+
+    `<div class="stat-row"><span>Connaissance ×spéc.</span><b>×${(techMult("know")*challengeKnowMult()).toFixed(2)}</b></div>`+
+    `<div class="stat-row"><span>Production 🧠/s</span><b>${fmt(rateOf("know"))}/s</b></div>`+
+    `<div class="stat-row"><span>Valeur d'un éveil</span><b>${fmt(clickValue())}</b></div>`;
   // Ajouter les chroniques en dessous du stat-box
   const chrLog=el("chrLog"); if(chrLog) chrLog.innerHTML=renderChronicleLog();
 }
