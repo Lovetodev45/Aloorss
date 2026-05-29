@@ -149,6 +149,8 @@ header{text-align:center;padding:20px 0 10px}
 .res-rate{font-size:clamp(10px,2.6vw,11px);color:var(--green);font-variant-numeric:tabular-nums;opacity:.85;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .res-rate.zero{color:var(--dim);opacity:.6}
+.res-legend{text-align:center;font-size:10.5px;color:var(--dim);letter-spacing:.02em;margin:-4px 0 4px}
+.res-legend b{color:var(--gold-soft)}
 
 /* ===== Main click ===== */
 /* Zone autour de la planète 3D : haute pour laisser respirer le monde */
@@ -589,6 +591,7 @@ body{transition:background 1.6s ease}
 
   <!-- Resources -->
   <div class="resources" id="resources"></div>
+  <div class="res-legend">🧠 <b>Connaissance</b> = monnaie · 👥 Population dope tout · ⚡ Énergie &amp; ✨ Culture dopent la connaissance</div>
 
   <!-- Main click : interaction avec la planète 3D -->
   <div class="spark-zone">
@@ -1120,9 +1123,17 @@ function techMult(kind){
   return m;
 }
 function sparkMult(){ return (1 + G.sparks*0.03) * decreeSparkPotency(); }
-function popMult(){ return 1 + Math.log10(1+G.res.pop)*0.15; } // population dope la prod globale
+// ---- Les 3 ressources "support" dopent la production (rôle clair & cohérent) ----
+// 👥 Population = main-d'œuvre : dope TOUTE la production.
+function popMult(){ return 1 + Math.log10(1+G.res.pop)*0.15; }
+// ⚡ Énergie = carburant : alimente bâtiments & machines → dope la production globale.
+function energyMult(){ return 1 + Math.log10(1+G.res.energy)*0.10; }
+// ✨ Culture = inspiration : accélère spécifiquement la connaissance (les idées naissent de l'art).
+function cultureMult(){ return 1 + Math.log10(1+G.res.culture)*0.12; }
 function eventMult(){ return Date.now()<G.eventBoostUntil ? G.eventBoost : 1; }
 function globalMult(){ return techMult("global") * sparkMult() * popMult() * eventMult() * decreeGlobalMult() * challengeRewardMult(); }
+// L'énergie et la culture nourrissent SPÉCIFIQUEMENT la connaissance (pas de boucle).
+function knowSupportMult(){ return energyMult() * cultureMult(); }
 
 // ---------- Couche 2 : Décrets Cosmiques ----------
 // Chaque décret est permanent (survit à toutes les renaissances et éveils).
@@ -1191,10 +1202,10 @@ function rateOf(resKey){
   if(resKey==="pop"){
     return r * techMult("pop") * sparkMult() * eventMult() * challengeRewardMult() * legacyMult("pop");
   }
-  const km = resKey==="know" ? challengeKnowMult() : 1;
+  const km = resKey==="know" ? challengeKnowMult()*knowSupportMult() : 1;   // énergie+culture dopent la connaissance
   return r * globalMult() * techMult(resKey) * km * legacyMult(resKey);
 }
-function clickValue(){ return G.clickPower * globalMult() * techMult("know") * decreeClickMult() * challengeKnowMult() * legacyMult("know"); }
+function clickValue(){ return G.clickPower * globalMult() * techMult("know") * decreeClickMult() * challengeKnowMult() * legacyMult("know") * knowSupportMult(); }
 
 // ---------- Boucle ----------
 let lastRender=0;
@@ -1469,8 +1480,9 @@ function renderStats(){
   el("statBox").innerHTML=`
     <div class="stat-row"><span>Âge actuel</span><b>${AGES[G.age].icon} ${AGES[G.age].name}</b></div>
     <div class="stat-row"><span>Connaissance totale gagnée</span><b>${fmt(G.totalKnow)}</b></div>
-    <div class="stat-row"><span>Population</span><b>${fmt(G.res.pop)}</b></div>
-    <div class="stat-row"><span>Bonus population</span><b>+${((popMult()-1)*100).toFixed(0)} %</b></div>
+    <div class="stat-row"><span>👥 Population <i style="color:var(--dim);font-style:normal">dope toute la prod</i></span><b>${fmt(G.res.pop)} → +${((popMult()-1)*100).toFixed(0)} %</b></div>
+    <div class="stat-row"><span>⚡ Énergie <i style="color:var(--dim);font-style:normal">dope la connaissance</i></span><b>+${((energyMult()-1)*100).toFixed(0)} %</b></div>
+    <div class="stat-row"><span>✨ Culture <i style="color:var(--dim);font-style:normal">dope la connaissance</i></span><b>+${((cultureMult()-1)*100).toFixed(0)} %</b></div>
     <div class="stat-row"><span>Bâtiments construits</span><b>${owned}</b></div>
     <div class="stat-row"><span>Découvertes</span><b>${techCount} / ${TECHS.length}</b></div>
     <div class="stat-row"><span>Étincelles d'Éon</span><b style="color:var(--gold)">${G.sparks} (+${((sparkMult()-1)*100).toFixed(0)} %)</b></div>
@@ -1490,6 +1502,8 @@ function renderStats(){
     row("Décret de Flux",dg,`niv.${decreeLvl("flux")}`)+
     row("Récompenses d'épreuves",ch)+
     row("Héritages (sur 🧠)",legacyMult("know"),legacySummary())+
+    row("⚡ Énergie → 🧠",energyMult())+
+    row("✨ Culture → 🧠",cultureMult())+
     (ev!==1?row("Bonus temporaire",ev,"actif !"):"")+
     `<div class="stat-row" style="border-top:1px solid var(--gold);margin-top:4px;padding-top:8px">
       <span style="color:var(--gold-soft)"><b>MULTIPLICATEUR TOTAL</b></span><b style="color:var(--gold-soft)">×${total.toFixed(2)}</b></div>`+
