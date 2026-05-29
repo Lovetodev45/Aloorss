@@ -25,6 +25,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
+<!-- PWA / icônes -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
   /* Palette gravée : noirs profonds · or vieilli · bleus cosmiques · blancs froids */
@@ -799,7 +803,7 @@ body{transition:background 1.6s ease}
 </div>
 
 <!-- Panneau ADMIN / test (caché par défaut) -->
-<button id="adminToggle" title="Panneau de test">⚙</button>
+<button id="adminToggle" class="hidden" title="Panneau de test">⚙</button>
 <div id="adminPanel" class="hidden">
   <div class="admin-head">
     <span>🛠️ Panneau de test</span>
@@ -1404,7 +1408,11 @@ function render(){
 
   el("sparkSub").textContent = "+"+fmt(clickValue())+" connaissance par éveil";
 
-  renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend(); renderCosmos(); renderTrials();
+  // perf : le Bilan (analyse complète) n'est régénéré que si son onglet est ouvert.
+  renderBuild(); renderTech(); renderGoals();
+  const statsVis=(()=>{ const p=el("panel-stats"); return p&&p.classList.contains("active"); })();
+  if(statsVis) renderStats();
+  renderTranscend(); renderCosmos(); renderTrials();
   updateObjective();
   renderMissions();
   checkAchievements();
@@ -1546,12 +1554,16 @@ function updateObjective(){
     let tech=null;
     for(const t of TECHS){ if(!G.techs[t.id] && G.age>=t.age){
       const ck=t.cost.know||0,cc=t.cost.culture||0; if(G.res.know>=ck&&G.res.culture>=cc){ tech=t; break; } } }
+    // transcender est-il rentable ? (suggéré dès que ça vaut le coup, pas seulement à l'apogée)
+    const canPrestige = (typeof potentialSparks==="function") && potentialSparks()>G.sparks;
     if(G.totalKnow<10){
       txt="◈ <b>Objectif :</b> touchez l'organisme pour éveiller la pensée.";
     } else if(cheapest){
       txt=`◈ <b>Objectif :</b> construisez votre premier <b>${cheapest.name}</b> (onglet Bâtiments).`;
     } else if(tech){
       txt=`◈ <b>Objectif :</b> faites la découverte <b>${tech.name}</b> (onglet Découvertes).`;
+    } else if(canPrestige){
+      txt=`◈ <b>Prêt à transcender !</b> Renaître donne un bonus permanent (onglet ✦ Transcendance).`;
     } else if(next){
       const need=next.req-G.totalKnow;
       txt=`◈ <b>Objectif :</b> atteindre <b>${fmt(next.req)}</b> de connaissance pour l'${next.name} — encore ${fmt(need)}.`;
@@ -1620,6 +1632,11 @@ function renderTranscend(){
   const can = pot>G.sparks;
   btn.disabled=!can;
   btn.textContent = pot>0 ? `Transcender → gagner ${pot-G.sparks} étincelle(s)` : "Transcender";
+  // indice unique au tout premier moment où la transcendance devient possible
+  if(can && G.sparks===0 && !G._prestigeHinted){
+    G._prestigeHinted=true;
+    setTimeout(()=>toast("✦ <b>Nouveau :</b> vous pouvez <b>transcender</b> ! Vous renaissez plus puissant (onglet ✦ Transcendance)."),300);
+  }
   // appel à l'Éveil quand le seuil est franchi
   const callout=el("awakenCallout");
   if(callout) callout.style.display = (G.sparks>=50||canAwaken()||(G.awakenings>0)) ? "block" : "none";
@@ -1630,6 +1647,7 @@ function renderCosmos(){
   const unlocked = G.sparks>=30 || (G.singularities||0)>0 || (G.awakenings||0)>0;
   const tab=el("cosmosTab"); if(tab) tab.style.display = unlocked ? "" : "none";
   if(!unlocked) return;
+  const pv=el("panel-cosmos"); if(!(pv&&pv.classList.contains("active"))) return;  // perf : ne remplit que si ouvert
   const potS=potentialSingularities();
   el("potentialSing").textContent=potS;
   el("currentSing").textContent=G.singularities||0;
@@ -1667,6 +1685,7 @@ function renderTrials(){
   const unlocked = (G.sparks>0)||(G.awakenings>0)||Object.keys(G.challengesDone||{}).length>0||G.secretFound;
   const tab=el("trialsTab"); if(tab) tab.style.display=unlocked?"":"none";
   if(!unlocked) return;
+  const pv=el("panel-trials"); if(!(pv&&pv.classList.contains("active"))) return;  // perf : ne remplit que si ouvert
   const visible=CHALLENGES.filter(c=>!c.secret || G.secretFound || chalDone(c.id));
   const done=visible.filter(c=>chalDone(c.id)).length;
   el("trialsProgress").textContent=`${done} / ${visible.length}`;
@@ -3366,14 +3385,16 @@ const Admin=(()=>{
     el("adminPanel").addEventListener("click",e=>{
       const b=e.target.closest("[data-adm]"); if(b) run(b.dataset.adm);
     });
-    // raccourci clavier Ctrl/Cmd + Shift + A
-    addEventListener("keydown",e=>{
-      if(e.shiftKey && (e.ctrlKey||e.metaKey) && (e.key==="A"||e.key==="a")){
-        e.preventDefault(); toggle();
-      }
-    });
-    // ouvrir d'office si ?admin=1
-    if(/[?&]admin=1/.test(location.search)) open();
+    // Le panneau de test n'est accessible qu'en mode admin (?admin=1) — caché pour les joueurs.
+    const adminMode=/[?&]admin=1/.test(location.search);
+    if(adminMode){
+      el("adminToggle").classList.remove("hidden");   // révèle le bouton ⚙
+      // raccourci clavier Ctrl/Cmd + Shift + A (admin uniquement)
+      addEventListener("keydown",e=>{
+        if(e.shiftKey && (e.ctrlKey||e.metaKey) && (e.key==="A"||e.key==="a")){ e.preventDefault(); toggle(); }
+      });
+      open();
+    }
   }
   return {init,open,close,toggle};
 })();
