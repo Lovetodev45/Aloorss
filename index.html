@@ -38,8 +38,10 @@ body{
 
 /* 2D starfield fallback (sous le rendu 3D) */
 #stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35}
-/* Monde 3D — plein écran, derrière l'UI */
-#world{position:fixed;inset:0;z-index:1;display:block;touch-action:none}
+/* Monde 3D — plein écran, derrière l'UI.
+   touch-action:pan-y → les swipes VERTICAUX scrollent la page nativement (mobile),
+   le canvas ne capte que l'horizontal (rotation) + les taps (éveil). */
+#world{position:fixed;inset:0;z-index:1;display:block;touch-action:pan-y}
 /* Vignette douce pour la lisibilité de l'UI par-dessus le monde */
 #vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
   background:radial-gradient(ellipse 120% 90% at 50% 42%,transparent 38%,rgba(4,4,12,.55) 100%)}
@@ -76,6 +78,9 @@ header{text-align:center;padding:34px 0 18px}
   color:var(--gold-soft)}
 .age-tag{color:var(--muted);font-size:12.5px;margin-top:4px;font-style:italic;letter-spacing:.02em}
 .age-progress{margin-top:16px}
+.objective{margin-top:13px;font-size:12.5px;color:var(--accent-light);letter-spacing:.03em;
+  background:rgba(111,134,200,.08);border:1px solid var(--hair);border-radius:9px;padding:8px 12px;line-height:1.45}
+.objective b{color:var(--gold-soft)}
 .bar{height:7px;background:rgba(0,0,0,.4);border-radius:6px;overflow:hidden;border:1px solid var(--hair)}
 .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));transition:width .3s ease;border-radius:6px;box-shadow:0 0 10px var(--gold-glow)}
 .bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:7px;letter-spacing:.04em}
@@ -412,6 +417,7 @@ body{transition:background 1.6s ease}
       <div class="bar"><div class="bar-fill" id="ageBar" style="width:0%"></div></div>
       <div class="bar-label"><span id="ageBarLabel">0 / 0 connaissance</span><span id="ageNext"></span></div>
     </div>
+    <div class="objective" id="objective">◈ Objectif : touchez l'organisme pour éveiller la pensée.</div>
     <button class="advance-btn" id="advanceBtn" disabled>Faire avancer l'humanité</button>
   </div>
 
@@ -934,6 +940,7 @@ function render(){
   el("sparkSub").textContent = "+"+fmt(clickValue())+" connaissance par éveil";
 
   renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend(); renderCosmos();
+  updateObjective();
   checkAchievements();
 }
 
@@ -1008,6 +1015,40 @@ function renderTech(){
   const badge=el("techBadge");
   badge.style.display = avail>0?"inline-block":"none";
   badge.textContent=avail;
+}
+
+// ---------- Objectif dynamique : toujours dire au joueur quoi viser ----------
+let _objSig="";
+function updateObjective(){
+  const node=el("objective"); if(!node) return;
+  let txt;
+  const next=AGES[G.age+1];
+  // 1) un âge prêt à franchir ?
+  if(next && G.totalKnow>=next.req){
+    txt=`◈ <b>Prêt !</b> Faites avancer l'humanité vers l'${next.name}.`;
+  } else {
+    // 2) un bâtiment abordable et pas encore pris ? guide l'achat
+    let cheapest=null, cheapCost=Infinity;
+    for(const b of BUILDINGS){ if(G.age>=b.age){ const c=buildingCost(b);
+      if(getCount(b.id)===0 && c<=G.res.know && c<cheapCost){ cheapest=b; cheapCost=c; } } }
+    // 3) une découverte abordable ?
+    let tech=null;
+    for(const t of TECHS){ if(!G.techs[t.id] && G.age>=t.age){
+      const ck=t.cost.know||0,cc=t.cost.culture||0; if(G.res.know>=ck&&G.res.culture>=cc){ tech=t; break; } } }
+    if(G.totalKnow<10){
+      txt="◈ <b>Objectif :</b> touchez l'organisme pour éveiller la pensée.";
+    } else if(cheapest){
+      txt=`◈ <b>Objectif :</b> construisez votre premier <b>${cheapest.name}</b> (onglet Bâtiments).`;
+    } else if(tech){
+      txt=`◈ <b>Objectif :</b> faites la découverte <b>${tech.name}</b> (onglet Découvertes).`;
+    } else if(next){
+      const need=next.req-G.totalKnow;
+      txt=`◈ <b>Objectif :</b> atteindre <b>${fmt(next.req)}</b> de connaissance pour l'${next.name} — encore ${fmt(need)}.`;
+    } else {
+      txt="◈ <b>Apogée atteinte.</b> Envisagez de transcender (onglet ✦).";
+    }
+  }
+  if(txt!==_objSig){ _objSig=txt; node.innerHTML=txt; }
 }
 
 function renderStats(){
@@ -1410,24 +1451,18 @@ document.addEventListener("keydown", e=>{
 });
 
 // ---------- Champ d'étoiles ----------
+// Champ d'étoiles 2D : rendu UNE seule fois en statique (le monde 3D anime déjà
+// les étoiles). Plus de boucle RAF dédiée → moins de charge.
 (function(){
-  const c=el("stars"), ctx=c.getContext("2d");
-  let stars=[];
-  function resize(){ c.width=innerWidth; c.height=innerHeight;
-    stars=Array.from({length:Math.min(180, Math.floor(innerWidth*innerHeight/9000))},()=>({
-      x:Math.random()*c.width, y:Math.random()*c.height, r:Math.random()*1.4+.2,
-      a:Math.random(), s:Math.random()*.02+.004 }));
-  }
-  function draw(){
+  const c=el("stars"); if(!c) return; const ctx=c.getContext("2d");
+  function paint(){ c.width=innerWidth; c.height=innerHeight;
     ctx.clearRect(0,0,c.width,c.height);
-    for(const s of stars){
-      s.a+=s.s; const al=.3+Math.abs(Math.sin(s.a))*.7;
-      ctx.beginPath(); ctx.fillStyle=`rgba(180,180,255,${al})`;
-      ctx.arc(s.x,s.y,s.r,0,7); ctx.fill();
-    }
-    requestAnimationFrame(draw);
+    const n=Math.min(140, Math.floor(innerWidth*innerHeight/12000));
+    for(let i=0;i<n;i++){ const r=Math.random()*1.3+.2, a=.25+Math.random()*.55;
+      ctx.beginPath(); ctx.fillStyle=`rgba(180,185,220,${a})`;
+      ctx.arc(Math.random()*c.width,Math.random()*c.height,r,0,7); ctx.fill(); }
   }
-  addEventListener("resize", resize); resize(); draw();
+  let t; addEventListener("resize",()=>{ clearTimeout(t); t=setTimeout(paint,200); }); paint();
 })();
 
 /* ============================================================
@@ -1602,9 +1637,10 @@ const Sound=(()=>{
 
 // ---------- Particules (canvas plein écran) ----------
 const FX=(()=>{
-  const c=el("fx"), x=c.getContext("2d"); let parts=[], W=0,H=0;
+  const c=el("fx"), x=c.getContext("2d"); let parts=[], W=0,H=0, running=false;
   function resize(){ c.width=W=innerWidth; c.height=H=innerHeight; }
   addEventListener("resize",resize); resize();
+  function wake(){ if(!running){ running=true; requestAnimationFrame(tick); } } // démarre la boucle à la demande
   function burst(px,py,o){ o=o||{};
     const n=o.n||14, cols=o.colors||["#c9a44a","#9cc3ff","#f4e6c0"],
       sp=o.speed||3.4, sz=o.size||3, gr=o.gravity!=null?o.gravity:.07, up=o.up||1;
@@ -1612,13 +1648,16 @@ const FX=(()=>{
       parts.push({x:px,y:py,vx:Math.cos(a)*v,vy:Math.sin(a)*v-up,life:1,
         decay:.012+Math.random()*.022,r:sz*(.6+Math.random()),g:gr,
         col:cols[(Math.random()*cols.length)|0],shape:o.shape||"circle"}); }
+    wake();
   }
   function confetti(n){ n=n||130;
     const cols=["#c9a44a","#9cc3ff","#7fcf9e","#d8b87a","#ffb454","#9cc3ff","#f4e6c0"];
     for(let i=0;i<n;i++) parts.push({x:Math.random()*W,y:-20-Math.random()*H*.35,
       vx:(Math.random()-.5)*2.4,vy:2+Math.random()*3.5,life:1,decay:.0035+Math.random()*.004,
-      r:4+Math.random()*5,g:.05,col:cols[(Math.random()*cols.length)|0],shape:"rect",spin:Math.random()*.3}); }
+      r:4+Math.random()*5,g:.05,col:cols[(Math.random()*cols.length)|0],shape:"rect",spin:Math.random()*.3});
+    wake(); }
   function tick(){
+    if(parts.length===0){ x.clearRect(0,0,W,H); running=false; return; } // s'endort quand vide
     x.clearRect(0,0,W,H);
     for(let i=parts.length-1;i>=0;i--){ const p=parts[i];
       p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=.99; p.life-=p.decay;
@@ -1630,7 +1669,6 @@ const FX=(()=>{
     }
     x.globalAlpha=1; requestAnimationFrame(tick);
   }
-  tick();
   return {burst,confetti};
 })();
 

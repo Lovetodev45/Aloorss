@@ -49,6 +49,7 @@ let ok=false, worldClickCb=null;
 let camTheta=0.7,camPhi=1.12,camDist=8,camDistT=8;
 let drag=false,lx=0,ly=0,downX=0,downY=0,auto=true,pinch0=0,pinchD0=0;
 let _last=0;
+const _tmpV=new THREE.Vector3();   // vecteur réutilisable (anti-GC dans la boucle)
 
 function randDir(){ const u=Math.random()*2-1,t=Math.random()*6.283,s=Math.sqrt(1-u*u);
   return new THREE.Vector3(Math.cos(t)*s,u,Math.sin(t)*s); }
@@ -58,11 +59,14 @@ function lerpCol(target,hex,k){ target.lerp(new THREE.Color(hex),k); }
 function init(){
   const canvas=document.getElementById("world");
   if(!canvas) return false;
-  try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:"high-performance"}); }
+  const mobile=/android|iphone|ipad|ipod/i.test(navigator.userAgent)||innerWidth<760;
+  try{ renderer=new THREE.WebGLRenderer({canvas,antialias:!mobile,alpha:false,powerPreference:"high-performance"}); }
   catch(e){ console.warn("WebGL indispo",e); return false; }
-  renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  // sur mobile : DPR plafonné à 1.5 (énorme gain de fluidité), antialias off
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1, mobile?1.5:2));
   renderer.setSize(innerWidth,innerHeight,false);
   renderer.setClearColor(0x04040a,1);
+  window._aeonMobile=mobile;
 
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,1000);
@@ -113,7 +117,7 @@ float snoise(vec3 v){
   vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);m=m*m;
   return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }
-float fbm(vec3 p){float a=0.5,s=0.0;for(int i=0;i<4;i++){s+=a*snoise(p);p*=2.0;a*=0.5;}return s;}
+float fbm(vec3 p){float a=0.5,s=0.0;for(int i=0;i<3;i++){s+=a*snoise(p);p*=2.0;a*=0.5;}return s;}
 `;
 function buildOrganism(){
   organism=new THREE.Group(); scene.add(organism);
@@ -135,9 +139,9 @@ function buildOrganism(){
         vec3 base=mix(uBase,uB2,n*0.5+0.5);
         float dif=max(dot(N,normalize(vec3(0.6,0.55,0.7))),0.0);
         vec3 col=base*(0.20+dif*0.50);
-        // énergie : veines internes orangées, discrètes
-        float veins=pow(max(fbm(vLocal*2.4+vec3(7.0)),0.0),2.0);
-        float beat=0.5+0.5*sin(uTime*1.8+fbm(vLocal*2.0)*6.28);
+        // énergie : veines internes orangées, discrètes (réutilise n, pas de fbm en plus)
+        float veins=pow(max(n,0.0),2.0);
+        float beat=0.5+0.5*sin(uTime*1.8+n*6.28);
         col+=vec3(0.85,0.42,0.12)*veins*beat*uEnergy*0.6;
         // liseré atmosphérique : doré sobre, fin (pas d'arc-en-ciel)
         col+=uRim*fres*0.30;
@@ -151,7 +155,7 @@ function buildOrganism(){
         gl_FragColor=vec4(col,1.0);
       }`,
   });
-  sphere=new THREE.Mesh(new THREE.SphereGeometry(R,128,128),surfMat);
+  sphere=new THREE.Mesh(new THREE.SphereGeometry(R,72,72),surfMat);
   organism.add(sphere);
 }
 
@@ -179,8 +183,8 @@ function buildGlyphs(){
   glyphs=new THREE.Points(g,new THREE.PointsMaterial({color:0xd8b87a,size:0.05,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true}));
   organism.add(glyphs);
 }
-// POPULATION — nuée orbitale
-const MAXPOP=1100; let popShown=0;
+// POPULATION — nuée orbitale (moins de points sur mobile)
+const MAXPOP=(/android|iphone|ipad|ipod/i.test(navigator.userAgent)||innerWidth<760)?420:900; let popShown=0;
 function buildPop(){
   const pos=new Float32Array(MAXPOP*3);
   for(let i=0;i<MAXPOP;i++){const dir=randDir(),r=R*1.07+Math.random()*0.26;
@@ -216,8 +220,26 @@ function fireBurst(hex){
 function updateCam(){const x=camDist*Math.sin(camPhi)*Math.cos(camTheta),y=camDist*Math.cos(camPhi),z=camDist*Math.sin(camPhi)*Math.sin(camTheta);
   camera.position.set(x,y,z);camera.lookAt(0,0,0);}
 function bindInput(canvas){
-  canvas.addEventListener("pointerdown",e=>{drag=true;lx=e.clientX;ly=e.clientY;downX=e.clientX;downY=e.clientY;auto=false;canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId);});
-  canvas.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;camTheta-=dx*0.005;camPhi=Math.max(0.25,Math.min(Math.PI-0.25,camPhi-dy*0.005));});
+  let isTouch=false, rotating=false;
+  canvas.addEventListener("pointerdown",e=>{
+    drag=true; rotating=false; isTouch=(e.pointerType==="touch");
+    lx=e.clientX;ly=e.clientY;downX=e.clientX;downY=e.clientY;auto=false;
+    // sur tactile : ne capture PAS tout de suite (laisse le scroll vertical possible)
+    if(!isTouch && canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove",e=>{
+    if(!drag) return;
+    const dx=e.clientX-lx, dy=e.clientY-ly;
+    if(isTouch && !rotating){
+      // on décide : geste plutôt horizontal → rotation ; plutôt vertical → on laisse scroller
+      if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)<8) return;
+      if(Math.abs(e.clientX-downX) > Math.abs(e.clientY-downY)){
+        rotating=true; canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId);
+      } else { drag=false; return; } // vertical : on abandonne → la page scrolle
+    }
+    lx=e.clientX;ly=e.clientY;
+    camTheta-=dx*0.005; camPhi=Math.max(0.25,Math.min(Math.PI-0.25,camPhi-dy*0.005));
+  });
   canvas.addEventListener("pointerup",e=>{drag=false;if(Math.abs(e.clientX-downX)<6&&Math.abs(e.clientY-downY)<6)pick(e.clientX,e.clientY);setTimeout(()=>auto=true,4000);});
   canvas.addEventListener("wheel",e=>{e.preventDefault();camDistT=Math.max(4.5,Math.min(11,camDistT+e.deltaY*0.006));},{passive:false});
   canvas.addEventListener("touchstart",e=>{if(e.touches.length===2){pinchD0=td(e);pinch0=camDistT;}});
@@ -270,7 +292,9 @@ function animate(){
   const visN=Math.floor(popShown); popCloud.geometry.setDrawRange(0,visN);
   const parr=popCloud.geometry.attributes.position.array;
   for(let i=0;i<visN;i++){const d=popData[i];d.ang+=d.sp*dt;
-    const v=d.dir.clone().applyAxisAngle(d.axis,d.ang).multiplyScalar(d.r);parr[i*3]=v.x;parr[i*3+1]=v.y;parr[i*3+2]=v.z;}
+    // réutilise un vecteur temporaire (zéro allocation → pas de hoquet GC)
+    _tmpV.copy(d.dir).applyAxisAngle(d.axis,d.ang).multiplyScalar(d.r);
+    parr[i*3]=_tmpV.x;parr[i*3+1]=_tmpV.y;parr[i*3+2]=_tmpV.z;}
   if(visN>0) popCloud.geometry.attributes.position.needsUpdate=true;
   // ÉNERGIE → pulsation
   sphere.scale.setScalar(1+Math.sin(now*0.0018)*0.012*uni.uEnergy.value+uni.uClickStr.value*0.003);
