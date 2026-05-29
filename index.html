@@ -97,7 +97,7 @@ header{text-align:center;padding:34px 0 18px}
 
 /* ===== Resource bar ===== */
 .resources{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(7px,1.6vw,10px);margin:clamp(12px,3vw,18px) 0;
 }
 .res{
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
@@ -105,11 +105,14 @@ header{text-align:center;padding:34px 0 18px}
   border:1px solid var(--border);border-radius:14px;padding:12px 14px;
   display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);
 }
-.res-ic{font-size:20px;width:30px;text-align:center;opacity:.9}
+.res-ic{font-size:clamp(16px,4vw,20px);width:auto;text-align:center;opacity:.9;flex:0 0 auto}
 .res-meta{min-width:0;flex:1}
-.res-name{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--dim)}
-.res-val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.01em}
-.res-rate{font-size:11px;color:var(--green);font-variant-numeric:tabular-nums;opacity:.85}
+.res-name{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-val{font-size:clamp(15px,4vw,18px);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-rate{font-size:clamp(10px,2.6vw,11px);color:var(--green);font-variant-numeric:tabular-nums;opacity:.85;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .res-rate.zero{color:var(--dim);opacity:.6}
 
 /* ===== Main click ===== */
@@ -150,7 +153,8 @@ header{text-align:center;padding:34px 0 18px}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ===== Cards grid ===== */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+/* auto-fit + min() : s'adapte de 3 colonnes (desktop) à 1 (mobile) sans débordement */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:clamp(8px,2vw,12px)}
 .card{
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
   backdrop-filter:blur(12px) saturate(1.15);-webkit-backdrop-filter:blur(12px) saturate(1.15);
@@ -367,9 +371,12 @@ body{transition:background 1.6s ease}
 /* respect des encoches (safe-area) sur l'enveloppe principale */
 .wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
 
-/* Tablette & petits portables */
-@media(max-width:820px){
-  .grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+/* Le .grid en auto-fit s'adapte déjà en continu (3→2→1 colonnes).
+   On affine surtout le confort tactile et la densité par paliers. */
+
+/* Tablette (portrait) : resources sur 4 mais un peu plus aérées */
+@media(min-width:681px) and (max-width:1024px){
+  .wrap{max-width:920px}
 }
 
 /* Téléphones */
