@@ -78,6 +78,20 @@ header{text-align:center;padding:20px 0 10px}
 #ticker::before{content:"📰";font-style:normal;margin-right:9px;opacity:.7;flex:0 0 auto}
 #tickerText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .4s ease;flex:1}
 #tickerText b{color:var(--gold-soft);font-style:normal}
+/* Indicateur de boost actif — discret, barre qui se vide en douceur */
+#boostChip{max-width:680px;margin:8px auto 0;padding:0;height:0;overflow:hidden;opacity:0;
+  border-radius:9px;position:relative;transition:height .35s ease,opacity .35s ease,margin .35s ease}
+#boostChip.on{height:30px;opacity:1;padding:0;
+  background:linear-gradient(180deg,rgba(201,164,74,.10),rgba(201,164,74,.04));
+  border:1px solid var(--hair);display:flex;align-items:center}
+#boostLabel{position:relative;z-index:2;padding:0 14px;font-size:12.5px;font-weight:600;
+  letter-spacing:.04em;color:var(--gold-soft);white-space:nowrap}
+#boostBar{position:absolute;left:0;bottom:0;height:2px;width:100%;
+  background:linear-gradient(90deg,var(--gold),var(--accent-light));border-radius:2px;
+  transform-origin:left;will-change:transform}
+#boostChip.bad{background:linear-gradient(180deg,rgba(217,138,138,.12),rgba(217,138,138,.04))}
+#boostChip.bad #boostLabel{color:#f0b0b0}
+#boostChip.bad #boostBar{background:linear-gradient(90deg,var(--red),#ffb454)}
 
 /* ===== Age banner ===== */
 .age-banner{
@@ -555,6 +569,9 @@ body{transition:background 1.6s ease}
 
   <!-- Bandeau d'actualités (la "voix" du jeu) -->
   <div id="ticker"><div id="tickerText">…</div></div>
+
+  <!-- Indicateur de boost temporaire actif -->
+  <div id="boostChip"><span id="boostLabel"></span><i id="boostBar"></i></div>
 
   <!-- Age banner -->
   <div class="age-banner">
@@ -1156,6 +1173,7 @@ function loop(now){
     updateNumbers();
     feedOrganism();
     Golden.tick();
+    updateBoostChip();
     if(now-lastRender>120){ render(); lastRender=now; }
   }catch(e){ console.error("ÆON loop:", e); }
   requestAnimationFrame(loop);
@@ -1173,6 +1191,24 @@ function feedOrganism(){
     culture: vitalLevel(G.res.culture, 7),
     pop:     vitalLevel(G.res.pop, 7),
   });
+}
+// Indicateur de boost actif : libellé + barre qui se vide en douceur
+function updateBoostChip(){
+  const chip=el("boostChip"); if(!chip) return;
+  const remain=G.eventBoostUntil-Date.now();
+  const active=remain>0 && G.eventBoost!==1;
+  if(active){
+    const dur=G.eventBoostDur||1, frac=Math.max(0,Math.min(1,remain/dur));
+    const sec=Math.ceil(remain/1000);
+    if(!chip.classList.contains("on")){ chip.classList.add("on"); }
+    chip.classList.toggle("bad", G.eventBoost<1);
+    const lbl=el("boostLabel");
+    const txt=(G.eventBoost<1?"⚠ ":"✦ ")+`×${G.eventBoost} · ${sec} s`;
+    if(lbl.textContent!==txt) lbl.textContent=txt;
+    el("boostBar").style.transform="scaleX("+frac+")";
+  } else if(chip.classList.contains("on")){
+    chip.classList.remove("on");
+  }
 }
 
 // ---------- Rendu ----------
@@ -1946,6 +1982,7 @@ const EVENTS=[
   ]},
 ];
 function boost(mult,sec){ G.eventBoost=mult; G.eventBoostUntil=Date.now()+sec*1000;
+  G.eventBoostDur=sec*1000; G.eventBoostLabel=mult<1?`×${mult}`:`×${mult}`;
   const bad=mult<1;
   if(bad) G._tookSlowdown=true;   // marque un ralentissement (épreuve "L'Inébranlable")
   if(bad){ shake(.8); Sound.event(); toast(`⚠ Épreuve : production <b>×${mult}</b> pendant ${sec} s.`); }
