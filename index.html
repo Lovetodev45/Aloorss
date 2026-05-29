@@ -432,6 +432,7 @@ body{transition:background 1.6s ease}
     <div class="tab" data-tab="goals">🏆 Succès</div>
     <div class="tab" data-tab="stats">📊 Civilisation</div>
     <div class="tab" data-tab="transcend">✦ Transcendance</div>
+    <div class="tab" data-tab="cosmos" id="cosmosTab" style="display:none">✸ Cosmos <span class="badge" id="cosmosBadge" style="display:none">0</span></div>
   </div>
 
   <!-- Panels -->
@@ -469,7 +470,27 @@ body{transition:background 1.6s ease}
         <button class="transcend-btn" id="transcendBtn" disabled>Transcender</button>
       </div>
       <p style="margin-top:14px;font-size:12px">Vous pourrez transcender une fois <b id="transcendReq">1 M</b> de connaissance totale gagnée.</p>
+      <div id="awakenCallout" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-family:'Cinzel',serif;color:var(--accent-light);font-size:16px;margin-bottom:6px">✸ Un seuil supérieur s'ouvre…</div>
+        <p style="font-size:13px">Vous avez accumulé assez d'Étincelles pour <b>vous éveiller au Cosmos</b> et gagner des Singularités permanentes. Onglet <b>✸ Cosmos</b>.</p>
+      </div>
     </div>
+  </div>
+
+  <div class="panel" id="panel-cosmos">
+    <div class="transcend-box" style="border-color:var(--accent)">
+      <h3 style="color:var(--accent-light)">✸ L'Éveil Cosmique</h3>
+      <p>Au-delà de la transcendance. Sacrifiez <b>toutes vos Étincelles d'Éon</b> pour des <b style="color:var(--accent-light)">Singularités ✸</b> — une monnaie qui ne disparaît jamais et façonne le début de chaque cycle futur.</p>
+      <div>Singularités si vous vous éveillez maintenant&nbsp;:</div>
+      <div class="spark-count" id="potentialSing" style="color:var(--accent-light)">0</div>
+      <div style="color:var(--muted);font-size:13px">Singularités&nbsp;: <b id="currentSing" style="color:var(--accent-light)">0</b> · Éveils&nbsp;: <b id="awakenCount">0</b></div>
+      <div class="btn-row">
+        <button class="transcend-btn" id="awakenBtn" style="background:linear-gradient(120deg,var(--accent),var(--accent-light));color:#fff" disabled>S'éveiller</button>
+      </div>
+      <p style="margin-top:10px;font-size:12px">Premier éveil possible à partir de <b>50 Étincelles</b> accumulées.</p>
+    </div>
+    <div class="section-h" style="margin-top:18px">Décrets Cosmiques — permanents, survivent à tout</div>
+    <div class="grid" id="decreeGrid"></div>
   </div>
 
   <footer>
@@ -521,6 +542,14 @@ body{transition:background 1.6s ease}
       <button class="admin-btn" data-adm="spark-1">+1 ✦</button>
       <button class="admin-btn" data-adm="spark-5">+5 ✦ (révélation)</button>
       <button class="admin-btn" data-adm="spark-25">+25 ✦ (fin secrète)</button>
+      <button class="admin-btn" data-adm="spark-60">+60 ✦ (éveil)</button>
+    </div>
+  </div>
+  <div class="admin-sec">
+    <div class="admin-sub">Cosmos (singularités ✸)</div>
+    <div class="admin-grid">
+      <button class="admin-btn" data-adm="sing-5">+5 ✸</button>
+      <button class="admin-btn" data-adm="sing-50">+50 ✸</button>
     </div>
   </div>
   <div class="admin-sec">
@@ -690,7 +719,10 @@ function newGame(){
     buildings:{},         // id -> count
     techs:{},             // id -> true
     age:0,
-    sparks:0,             // étincelles de prestige
+    sparks:0,             // étincelles de prestige (couche 1)
+    singularities:0,      // Singularités ✸ (couche 2 — survit aux transcendances)
+    decrees:{},           // Décrets Cosmiques : id -> niveau (permanent, survit à tout)
+    awakenings:0,         // nombre d'Éveils Cosmiques effectués
     clickPower:1,
     started:Date.now(),
     lastTick:Date.now(),
@@ -699,6 +731,20 @@ function newGame(){
     eventBoostUntil:0,
   };
 }
+
+// Champs méta-progression qui survivent à TOUTES les renaissances/éveils
+function carryMeta(g){
+  return {
+    muted:g.muted, prologueSeen:true,
+    revelationSeen:g.revelationSeen, deepRevSeen:g.deepRevSeen, endingSeen:g.endingSeen,
+    chronicles:g.chronicles||[],
+    // couche 2 (cosmique) : toujours préservée
+    singularities:g.singularities||0, decrees:g.decrees||{}, awakenings:g.awakenings||0,
+    // souvenirs narratifs de la couche 2
+    awakenSeen:g.awakenSeen,
+  };
+}
+function applyMeta(g, meta){ Object.assign(g, meta); return g; }
 
 // ---------- Helpers ----------
 function fmt(n){
@@ -718,10 +764,67 @@ function techMult(kind){
   for(const t of TECHS){ if(G.techs[t.id] && t.kind===kind) m*=t.mult; }
   return m;
 }
-function sparkMult(){ return 1 + G.sparks*0.03; }
+function sparkMult(){ return (1 + G.sparks*0.03) * decreeSparkPotency(); }
 function popMult(){ return 1 + Math.log10(1+G.res.pop)*0.15; } // population dope la prod globale
 function eventMult(){ return Date.now()<G.eventBoostUntil ? G.eventBoost : 1; }
-function globalMult(){ return techMult("global") * sparkMult() * popMult() * eventMult(); }
+function globalMult(){ return techMult("global") * sparkMult() * popMult() * eventMult() * decreeGlobalMult(); }
+
+// ---------- Couche 2 : Décrets Cosmiques ----------
+// Chaque décret est permanent (survit à toutes les renaissances et éveils).
+// effet(level) renvoie une valeur ; max = niveau maximum ; cost(level) en Singularités ✸.
+const DECREES=[
+  {id:"genese",  icon:"🌱", name:"Décret de Genèse",
+   desc:"Chaque cycle commence avec de la connaissance d'avance.",
+   max:8, cost:l=>1+l, effect:l=>[0,1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10][l]||0,
+   fmtEff:l=>"+"+fmt([0,1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10][l]||0)+" 🧠 au départ"},
+  {id:"flux",    icon:"⚡", name:"Décret de Flux",
+   desc:"Toute la production est multipliée.",
+   max:10, cost:l=>2+l*2, effect:l=>1+l*0.25,
+   fmtEff:l=>"×"+(1+l*0.25).toFixed(2)+" production"},
+  {id:"echo",    icon:"✦", name:"Décret d'Écho",
+   desc:"Chaque Étincelle d'Éon est plus puissante.",
+   max:10, cost:l=>3+l*3, effect:l=>1+l*0.10,
+   fmtEff:l=>"étincelles ×"+(1+l*0.10).toFixed(2)},
+  {id:"savoir",  icon:"📖", name:"Décret du Savoir",
+   desc:"Vous démarrez chaque cycle avec des découvertes déjà acquises.",
+   max:5, cost:l=>4+l*4, effect:l=>l,
+   fmtEff:l=>l+" découverte(s) offerte(s) au départ"},
+  {id:"clic",    icon:"👆", name:"Décret de l'Étincelle",
+   desc:"La puissance d'éveil (clic) est démultipliée.",
+   max:8, cost:l=>2+l*2, effect:l=>1+l*0.5,
+   fmtEff:l=>"clic ×"+(1+l*0.5).toFixed(1)},
+  {id:"temps",   icon:"⏳", name:"Décret du Temps",
+   desc:"Les gains hors-ligne durent plus longtemps et sont plus généreux.",
+   max:6, cost:l=>3+l*3, effect:l=>1+l*0.3,
+   fmtEff:l=>"hors-ligne ×"+(1+l*0.3).toFixed(1)},
+];
+function decreeLvl(id){ return (G.decrees&&G.decrees[id])||0; }
+function decreeGlobalMult(){ const d=DECREES.find(x=>x.id==="flux"); return d.effect(decreeLvl("flux")); }
+function decreeSparkPotency(){ const d=DECREES.find(x=>x.id==="echo"); return d.effect(decreeLvl("echo")); }
+function decreeClickMult(){ const d=DECREES.find(x=>x.id==="clic"); return d.effect(decreeLvl("clic")); }
+function decreeOfflineMult(){ const d=DECREES.find(x=>x.id==="temps"); return d.effect(decreeLvl("temps")); }
+function decreeStartKnow(){ const d=DECREES.find(x=>x.id==="genese"); return d.effect(decreeLvl("genese")); }
+function decreeStartTechs(){ const d=DECREES.find(x=>x.id==="savoir"); return d.effect(decreeLvl("savoir")); }
+
+// Singularités gagnables à l'Éveil : fonction des étincelles accumulées
+function potentialSingularities(){
+  // il faut au moins 50 étincelles pour le premier éveil
+  if(G.sparks<50) return 0;
+  return Math.floor(Math.pow(G.sparks/50, 0.8));
+}
+function canAwaken(){ return potentialSingularities() > 0; }
+
+// Applique les décrets de départ à un cycle neuf
+function applyStartingDecrees(){
+  const k=decreeStartKnow();
+  if(k>0){ G.res.know+=k; G.totalKnow+=k; }
+  const nTech=decreeStartTechs();
+  if(nTech>0){
+    // offrir les premières découvertes par ordre d'âge
+    let given=0;
+    for(const t of TECHS){ if(given>=nTech) break; if(!G.techs[t.id]){ G.techs[t.id]=true; given++; } }
+  }
+}
 
 // production par seconde d'une ressource (hors clic)
 function rateOf(resKey){
@@ -735,7 +838,7 @@ function rateOf(resKey){
   }
   return r * globalMult() * techMult(resKey);
 }
-function clickValue(){ return G.clickPower * globalMult() * techMult("know"); }
+function clickValue(){ return G.clickPower * globalMult() * techMult("know") * decreeClickMult(); }
 
 // ---------- Boucle ----------
 let lastRender=0;
@@ -807,7 +910,7 @@ function render(){
 
   el("sparkSub").textContent = "+"+fmt(clickValue())+" connaissance par éveil";
 
-  renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend();
+  renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend(); renderCosmos();
   checkAchievements();
 }
 
@@ -897,6 +1000,7 @@ function renderStats(){
     <div class="stat-row"><span>Bâtiments construits</span><b>${owned}</b></div>
     <div class="stat-row"><span>Découvertes</span><b>${techCount} / ${TECHS.length}</b></div>
     <div class="stat-row"><span>Étincelles d'Éon</span><b style="color:var(--gold)">${G.sparks} (+${((sparkMult()-1)*100).toFixed(0)} %)</b></div>
+    ${(G.singularities||0)>0||(G.awakenings||0)>0?`<div class="stat-row"><span>Singularités ✸</span><b style="color:var(--accent-light)">${G.singularities||0} · ${G.awakenings||0} éveil(s)</b></div>`:""}
     ${G.sparks>=25&&!G.endingSeen?`<div class="stat-row"><span style="color:var(--dim)">Un autre choix existe…</span><b style="color:var(--dim)">Transcendez pour le découvrir.</b></div>`:""}
     <div class="stat-row"><span>Multiplicateur global</span><b>×${globalMult().toFixed(2)}</b></div>
     <div class="stat-row"><span>Temps de jeu</span><b>${h}h ${mn}m</b></div>`;
@@ -920,6 +1024,45 @@ function renderTranscend(){
   const can = pot>G.sparks;
   btn.disabled=!can;
   btn.textContent = pot>0 ? `Transcender → gagner ${pot-G.sparks} étincelle(s)` : "Transcender";
+  // appel à l'Éveil quand le seuil est franchi
+  const callout=el("awakenCallout");
+  if(callout) callout.style.display = (G.sparks>=50||canAwaken()||(G.awakenings>0)) ? "block" : "none";
+}
+
+function renderCosmos(){
+  // l'onglet Cosmos n'apparaît qu'une fois le palier approché (≥30 étincelles) ou déjà éveillé
+  const unlocked = G.sparks>=30 || (G.singularities||0)>0 || (G.awakenings||0)>0;
+  const tab=el("cosmosTab"); if(tab) tab.style.display = unlocked ? "" : "none";
+  if(!unlocked) return;
+  const potS=potentialSingularities();
+  el("potentialSing").textContent=potS;
+  el("currentSing").textContent=G.singularities||0;
+  el("awakenCount").textContent=G.awakenings||0;
+  const ab=el("awakenBtn");
+  ab.disabled = potS<=0;
+  ab.textContent = potS>0 ? `S'éveiller → +${potS} Singularité(s)` : "S'éveiller (50 étincelles min)";
+  // badge : décrets achetables
+  let buyable=0;
+  for(const d of DECREES){ const l=decreeLvl(d.id); if(l<d.max && (G.singularities||0)>=d.cost(l)) buyable++; }
+  const badge=el("cosmosBadge");
+  if(badge){ badge.style.display=buyable>0?"inline-block":"none"; badge.textContent=buyable; }
+  // grille de décrets
+  let html="";
+  for(const d of DECREES){
+    const l=decreeLvl(d.id), maxed=l>=d.max;
+    const cost=maxed?0:d.cost(l);
+    const can=!maxed && (G.singularities||0)>=cost;
+    html+=`<div class="card ${maxed?'owned-tech':can?'affordable':''}">
+      <div class="card-head"><div class="card-ic">${d.icon}</div>
+        <div style="flex:1"><div class="card-title">${d.name} <span class="owned">niv. ${l}/${d.max}</span></div>
+        <div class="card-sub">${d.desc}</div></div></div>
+      <div class="card-desc">Actuel : <b style="color:var(--accent-light)">${l>0?d.fmtEff(l):'—'}</b>${maxed?'':` → ${d.fmtEff(l+1)}`}</div>
+      ${maxed?'<div class="card-foot"><span class="tag-pill" style="color:var(--gold);border-color:var(--gold)">niveau max</span></div>'
+        :`<div class="card-foot"><span class="cost ${can?'ok':'no'}">✸ ${cost}</span>
+          <button class="buy" data-decree="${d.id}" ${can?'':'disabled'}>Graver</button></div>`}
+    </div>`;
+  }
+  el("decreeGrid").innerHTML=html;
 }
 
 // ---------- Actions ----------
@@ -985,11 +1128,10 @@ function transcend(){
         Sound.init();
         const proceed=await showRevelation();
         if(!proceed) return; // fin secrète gérée dans showRevelation
-        const keepSparks=pot, muted=G.muted, rev=G.revelationSeen, deep=G.deepRevSeen, end=G.endingSeen;
-        const chrono=G.chronicles||[];
-        G=newGame(); G.sparks=keepSparks; G.muted=muted;
-        G.revelationSeen=rev; G.deepRevSeen=deep; G.endingSeen=end;
-        G.prologueSeen=true; G.chronicles=chrono;
+        const keepSparks=pot;
+        const meta=carryMeta(G);
+        G=newGame(); applyMeta(G, meta); G.sparks=keepSparks;
+        applyStartingDecrees();                          // Décrets : départ avancé
         applyTheme(0); syncDisplay();
         World.setAge(0,true); syncWorld();               // vide la planète et recommence
         if(World.transcendBurst) World.transcendBurst(); // gerbe 3D spectaculaire
@@ -999,6 +1141,59 @@ function transcend(){
       }},
       {label:"Pas encore", fn:()=>{}},
     ]
+  });
+}
+
+// ---------- Couche 2 : l'Éveil Cosmique ----------
+function awaken(){
+  const gain=potentialSingularities();
+  if(gain<=0) return;
+  showModal({
+    icon:"✸", title:"S'éveiller au Cosmos ?",
+    text:`Vous transcendez la transcendance elle-même. <b>Toutes vos Étincelles d'Éon seront dissoutes</b>, mais vous gagnerez <b>${gain} Singularité(s) ✸</b> — une monnaie cosmique qui ne disparaît <b>jamais</b>. Les Singularités achètent des <b>Décrets Cosmiques</b> : des pouvoirs permanents qui transforment le début de chaque cycle futur.`,
+    choices:[
+      {label:"<b>Oui</b>, m'éveiller", fn:async ()=>{
+        Sound.init();
+        await showAwakenNarr(gain);
+        const meta=carryMeta(G);
+        meta.singularities=(meta.singularities||0)+gain;
+        meta.awakenings=(meta.awakenings||0)+1;
+        G=newGame(); applyMeta(G, meta);   // sparks repartent à 0, décrets/singularités conservés
+        applyStartingDecrees();
+        applyTheme(0); syncDisplay();
+        World.setAge(0,true); syncWorld();
+        if(World.transcendBurst){ World.transcendBurst(); setTimeout(()=>World.transcendBurst(),300); }
+        flash(); shake(1.6); FX.confetti(320); Sound.transcend();
+        toast(`✸ Éveil n°${meta.awakenings}. Vous possédez <b>${meta.singularities}</b> Singularité(s).`);
+        render(); save();
+      }},
+      {label:"Pas encore", fn:()=>{}},
+    ]
+  });
+}
+function buyDecree(id){
+  const d=DECREES.find(x=>x.id===id); if(!d) return;
+  const lvl=decreeLvl(id);
+  if(lvl>=d.max){ Sound.blip(); return; }
+  const cost=d.cost(lvl);
+  if((G.singularities||0)<cost){ Sound.blip(); return; }
+  G.singularities-=cost;
+  if(!G.decrees) G.decrees={};
+  G.decrees[id]=lvl+1;
+  Sound.tech();
+  FX.confetti(40);
+  toast(`✸ <b>${d.name}</b> niveau ${lvl+1} — ${d.fmtEff(lvl+1)}`);
+  render(); save();
+}
+async function showAwakenNarr(gain){
+  if(G.awakenSeen) return;
+  G.awakenSeen=true;
+  await showNarr({
+    glyph:"✸",
+    pre:"Au-delà des cycles.",
+    title:"L'Éveil Cosmique",
+    text:`Vous avez transcendé tant de fois que la boucle elle-même devient matière.\n\nChaque Singularité est un fragment d'éternité que vous emportez — au-delà des renaissances, au-delà de l'oubli.\n\nLes <b>Décrets Cosmiques</b> sont votre volonté gravée dans les lois du réel.\nDésormais, chaque humanité naîtra déjà marquée par vous.`,
+    btn:"Graver ma volonté"
   });
 }
 
@@ -1113,8 +1308,10 @@ function load(){
     G.res=Object.assign({know:0,energy:0,culture:0,pop:0}, d.res||{});
     G.buildings=d.buildings||{}; G.techs=d.techs||{};
     sanitizeResources(); // répare une sauvegarde corrompue (valeurs négatives héritées)
-    // gain hors-ligne (max 8h, jamais négatif si l'horloge a reculé)
-    const away=Math.min(Math.max(0,(Date.now()-(d.lastTick||Date.now()))/1000), 8*3600);
+    // gain hors-ligne (max 8h × Décret du Temps, jamais négatif si l'horloge a reculé)
+    const offMult=decreeOfflineMult();
+    const cap=8*3600*offMult;
+    const away=Math.min(Math.max(0,(Date.now()-(d.lastTick||Date.now()))/1000), cap);
     if(away>30){
       const gain={know:rateOf("know")*away, energy:rateOf("energy")*away, culture:rateOf("culture")*away, pop:rateOf("pop")*away};
       G.res.know+=gain.know; G.totalKnow+=gain.know;
@@ -1154,11 +1351,13 @@ el("installBtn").addEventListener("click", async ()=>{
 });
 el("advanceBtn").addEventListener("click", advanceAge);
 el("transcendBtn").addEventListener("click", transcend);
+el("awakenBtn").addEventListener("click", awaken);
 el("overlay").addEventListener("click", e=>{ if(e.target.id==="overlay") closeModal(); });
 
 document.addEventListener("click", e=>{
   const buy=e.target.closest("[data-buy]"); if(buy){ buyBuilding(buy.dataset.buy); return; }
   const tech=e.target.closest("[data-tech]"); if(tech){ buyTech(tech.dataset.tech); return; }
+  const dec=e.target.closest("[data-decree]"); if(dec){ buyDecree(dec.dataset.decree); return; }
 });
 
 // onglets
@@ -1666,6 +1865,9 @@ const Admin=(()=>{
     "spark-1":()=>{ G.sparks+=1; toast(`🛠️ +1 étincelle (total ${G.sparks}).`); },
     "spark-5":()=>{ G.sparks=Math.max(G.sparks,5); toast(`🛠️ ${G.sparks} étincelles (révélation profonde au prochain prestige).`); },
     "spark-25":()=>{ G.sparks=Math.max(G.sparks,25); toast(`🛠️ ${G.sparks} étincelles (fin secrète disponible).`); },
+    "spark-60":()=>{ G.sparks=Math.max(G.sparks,60); toast(`🛠️ ${G.sparks} étincelles (éveil cosmique disponible).`); },
+    "sing-5":()=>{ G.singularities=(G.singularities||0)+5; toast(`🛠️ +5 ✸ (total ${G.singularities}).`); },
+    "sing-50":()=>{ G.singularities=(G.singularities||0)+50; toast(`🛠️ +50 ✸ (total ${G.singularities}).`); },
     "story-prologue":()=>{ G.prologueSeen=false; checkPrologue(); },
     "story-chronicle":()=>{ showChronicle(G.age); },
     "story-rev1":()=>{ showNarr({...REVELATION_FIRST, pre:`Analyse complète — cycle #${G.sparks+1}`}); },
