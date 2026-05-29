@@ -39,10 +39,9 @@ body{
 /* boutons : confort tactile + pas de surlignage de sélection accidentel */
 button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .tab,.buy,.btn,.action-btn,.advance-btn,.spark-btn,.transcend-btn,.ghost{user-select:none;-webkit-user-select:none}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
-::-webkit-scrollbar-thumb:hover{background:var(--border-glow)}
+/* Scrollbars invisibles partout — le défilement existe mais ne se voit jamais (façon iOS) */
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{width:0;height:0;display:none}
 
 /* Fond cosmique STATIQUE (léger, zéro CPU) : dégradé + champ d'étoiles peint une fois */
 #stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.6}
@@ -54,13 +53,12 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:
 /* Coque plein écran : tient toujours dans la hauteur visible (dvh = gère les barres mobiles).
    Seul le contenu du panneau actif défile, en interne. Zéro scroll de page. */
 .wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;width:100%;
-  height:100vh;height:100dvh;display:flex;flex-direction:column;
+  height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;
   padding:max(8px,env(safe-area-inset-top)) 16px calc(8px + env(safe-area-inset-bottom));
-  padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));
-  overflow-y:auto;-webkit-overflow-scrolling:touch}   /* soupape : si vraiment trop petit, la coque scrolle */
+  padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
 /* le bloc des panneaux prend l'espace restant et défile en interne.
    min-height garantit qu'il n'est JAMAIS écrasé à zéro → le contenu reste visible. */
-#panelHost{flex:1 1 auto;min-height:200px;overflow:hidden;display:flex;flex-direction:column}
+#panelHost{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
 .panel{display:none}
 .panel.active{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:4px;padding-bottom:8px;
