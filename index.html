@@ -71,6 +71,13 @@ header{text-align:center;padding:20px 0 10px}
 }
 .tagline{color:var(--dim);font-size:12px;letter-spacing:.42em;text-transform:uppercase;margin-top:10px;
   font-weight:500}
+/* Bandeau d'actualités — la voix du jeu */
+#ticker{max-width:680px;margin:10px auto 0;padding:7px 14px;border:1px solid var(--hair);
+  border-radius:10px;background:rgba(10,13,24,.5);backdrop-filter:blur(8px);overflow:hidden;
+  font-size:12.5px;color:var(--muted);font-style:italic;cursor:default;min-height:32px;display:flex;align-items:center}
+#ticker::before{content:"📰";font-style:normal;margin-right:9px;opacity:.7;flex:0 0 auto}
+#tickerText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .4s ease;flex:1}
+#tickerText b{color:var(--gold-soft);font-style:normal}
 
 /* ===== Age banner ===== */
 .age-banner{
@@ -546,6 +553,9 @@ body{transition:background 1.6s ease}
     <div class="tagline">La Simulation de l'Humanité</div>
   </header>
 
+  <!-- Bandeau d'actualités (la "voix" du jeu) -->
+  <div id="ticker"><div id="tickerText">…</div></div>
+
   <!-- Age banner -->
   <div class="age-banner">
     <div class="age-icon" id="ageIcon">🪨</div>
@@ -778,6 +788,50 @@ const AGES = [
   {name:"Ère de l'IA",      icon:"🤖", tag:"L'intelligence se démultiplie.",               req:1e10},    // ×25
   {name:"Ère Spatiale",     icon:"🚀", tag:"L'humanité quitte son berceau.",               req:2.5e11},  // ×25
   {name:"Transcendance",    icon:"✦",  tag:"Au-delà de la chair, vers les étoiles.",       req:6e12},    // ×24
+];
+
+// ---------- Bandeau d'actualités : la VOIX du jeu (épique + absurde) ----------
+// Messages génériques (toujours possibles) + spécifiques par âge.
+const NEWS_GENERIC=[
+  "Un philosophe demande : « et si les nombres montaient encore plus haut ? » La foule acquiesce.",
+  "Sondage : <b>97 %</b> des citoyens approuvent le fait d'exister. Les 3 % restants dormaient.",
+  "Un savant découvre que cliquer fonctionne. La science est en émoi.",
+  "Les historiens débattent : votre civilisation est-elle géniale, ou juste chanceuse ?",
+  "Un enfant demande pourquoi le ciel est grand. Personne ne sait. La recherche continue.",
+  "Rappel : toute ressemblance avec une vraie humanité est purement statistique.",
+  "Un citoyen nommé Gérald affirme que la lune a un goût de myrtille. Enquête en cours.",
+  "Les anciens disaient : « celui qui éveille l'esprit n'éveille pas les voisins. »",
+  "Économie : la connaissance reste la seule monnaie qu'on gagne en réfléchissant.",
+  "Un mouvement réclame moins de travail et plus de contemplation. Il est très productif.",
+];
+const NEWS_BY_AGE=[
+  ["Deux tribus se disputent le feu. La troisième invente le marshmallow.",
+   "Grande nouvelle : la roue tourne. Littéralement.",
+   "Un peintre rupestre signe son œuvre. Le concept de 'critique d'art' naît aussitôt."],
+  ["L'écriture est inventée. Premier usage documenté : une liste de courses.",
+   "Un empereur déclare la guerre à un autre empereur pour des raisons de poésie.",
+   "Les cités prospèrent. Les embouteillages de chars aussi."],
+  ["La peste recule. Les ragots, eux, se propagent toujours aussi vite.",
+   "Un moine recopie un livre entier à la main. Il aurait préféré Ctrl+C.",
+   "Un chevalier jure fidélité. À qui ? Il a déjà oublié."],
+  ["On redécouvre l'Antiquité. On se demande pourquoi on l'avait perdue.",
+   "Un génie peint, sculpte, invente et oublie de dormir. On l'appellera 'polyvalent'.",
+   "La perspective est inventée. Tout paraît soudain plus profond. Même les discours."],
+  ["La vapeur met le monde en mouvement. Les chevaux postulent au chômage.",
+   "Et soudain, ils inventèrent… la publicité.",
+   "Une usine transforme le charbon en progrès, et le ciel en gris. Marché conclu."],
+  ["Un signal traverse l'Atlantique. Le premier message est : « tu reçois ? »",
+   "L'information circule à la vitesse de la lumière. La désinformation aussi.",
+   "Tout le savoir du monde tient dans une poche. On l'utilise pour des vidéos de chats."],
+  ["Une machine comprend une blague. Personne ne rit. C'est peut-être ça, le problème.",
+   "L'IA propose d'optimiser l'humanité. L'humanité demande à réfléchir.",
+   "Votre intelligence artificielle a lu tout Internet. Elle est désormais très polie et légèrement inquiète."],
+  ["Un enfant né sur Mars regarde la Terre et demande : « on vient vraiment de là ? »",
+   "L'humanité essaime parmi les étoiles. Elle oublie toujours où elle a garé sa sonde.",
+   "Une sphère capte l'énergie d'un soleil entier. La facture d'électricité disparaît."],
+  ["La frontière entre penser et être s'efface. C'est étrangement paisible.",
+   "L'univers commence à se souvenir de lui-même. Vous en faites partie.",
+   "Vous lisez ceci. Quelque part, une civilisation se demande si elle vous a rêvé."],
 ];
 
 // ---------- Données : Bâtiments ----------
@@ -1503,6 +1557,7 @@ async function advanceAge(){
   flash(); shake(1.1); FX.confetti(150); Sound.age();
   for(const k in disp) popRes(k);
   flashAdvance(); render();
+  if(typeof Ticker!=="undefined") Ticker.show();   // une actu du nouvel âge tout de suite
   // Chronique narrative (non bloquante : après l'animation)
   await new Promise(r=>setTimeout(r,400));
   await showChronicle(G.age);
@@ -1974,6 +2029,28 @@ function flashAdvance(){
   const b=el("ageIcon"); b.style.transition="transform .4s"; b.style.transform="scale(1.5) rotate(8deg)";
   setTimeout(()=>b.style.transform="",400);
 }
+
+// ============================================================
+//   BANDEAU D'ACTUALITÉS — fait défiler la voix du jeu
+// ============================================================
+const Ticker=(()=>{
+  let last=-1, timer=null;
+  function pick(){
+    const ageNews=NEWS_BY_AGE[Math.min(G.age,NEWS_BY_AGE.length-1)]||[];
+    const pool=ageNews.concat(NEWS_GENERIC);
+    let i, tries=0;
+    do{ i=Math.floor(Math.random()*pool.length); tries++; }while(pool[i]===_lastMsg && tries<5);
+    _lastMsg=pool[i]; return pool[i];
+  }
+  let _lastMsg="";
+  function show(){
+    const t=el("tickerText"); if(!t) return;
+    t.style.opacity="0";
+    setTimeout(()=>{ t.innerHTML=pick(); t.style.opacity="1"; }, 400);
+  }
+  function start(){ if(timer) return; show(); timer=setInterval(show, 9000); }
+  return {start, show};
+})();
 
 // ============================================================
 //   ÉTINCELLE DORÉE — orbe-récompense aléatoire (façon "golden cookie")
@@ -2775,6 +2852,7 @@ safe("missions", initMissions);
 safe("daily", checkDailyBonus);
 safe("render", render);
 safe("admin", ()=>Admin.init());
+safe("ticker", ()=>Ticker.start());
 setTimeout(()=>{ try{ checkPrologue(); }catch(e){} }, 800);
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
