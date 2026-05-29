@@ -656,6 +656,9 @@ function loop(now){
   G.res.culture += rateOf("culture")*dt;
   G.res.pop += rateOf("pop")*dt;
 
+  // garde-fou : aucune ressource ne peut être négative ou NaN
+  sanitizeResources();
+
   // évènement aléatoire toutes ~75-140s
   if(Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
     triggerEvent(); G.lastEvent=Date.now();
@@ -993,6 +996,14 @@ function flashAdvance(){
   setTimeout(()=>b.style.transform="",400);
 }
 
+// ---------- Garde-fou ressources ----------
+function sanitizeResources(){
+  for(const k in G.res){
+    if(!Number.isFinite(G.res[k]) || G.res[k]<0) G.res[k]=0;
+  }
+  if(!Number.isFinite(G.totalKnow) || G.totalKnow<0) G.totalKnow=Math.max(0, G.res.know||0);
+}
+
 // ---------- Sauvegarde ----------
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }catch(e){} }
 function load(){
@@ -1003,8 +1014,9 @@ function load(){
     G=Object.assign(newGame(), d);
     G.res=Object.assign({know:0,energy:0,culture:0,pop:0}, d.res||{});
     G.buildings=d.buildings||{}; G.techs=d.techs||{};
-    // gain hors-ligne (max 8h)
-    const away=Math.min((Date.now()-(d.lastTick||Date.now()))/1000, 8*3600);
+    sanitizeResources(); // répare une sauvegarde corrompue (valeurs négatives héritées)
+    // gain hors-ligne (max 8h, jamais négatif si l'horloge a reculé)
+    const away=Math.min(Math.max(0,(Date.now()-(d.lastTick||Date.now()))/1000), 8*3600);
     if(away>30){
       const gain={know:rateOf("know")*away, energy:rateOf("energy")*away, culture:rateOf("culture")*away, pop:rateOf("pop")*away};
       G.res.know+=gain.know; G.totalKnow+=gain.know;
@@ -1726,6 +1738,7 @@ addEventListener("pointerdown", ()=>Sound.init(), {once:true});
 
 // ---------- Démarrage ----------
 load();
+sanitizeResources();
 applyTheme(G.age);
 syncDisplay();
 if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; }
