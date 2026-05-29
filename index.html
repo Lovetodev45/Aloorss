@@ -45,6 +45,8 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:
 
 /* Fond cosmique STATIQUE (léger, zéro CPU) : dégradé + champ d'étoiles peint une fois */
 #stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.6}
+/* Le Palimpseste vivant — fresque qui se dessine derrière l'UI */
+#palim{position:fixed;inset:0;z-index:0;pointer-events:none;display:block}
 #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
   background:
     radial-gradient(ellipse 90% 70% at 50% 30%,rgba(40,46,90,.18),transparent 60%),
@@ -603,6 +605,7 @@ body{transition:background 1.6s ease}
 </head>
 <body>
 <canvas id="stars"></canvas>
+<canvas id="palim"></canvas>
 <div id="vignette"></div>
 <canvas id="fx"></canvas>
 <canvas id="confetti"></canvas>
@@ -843,7 +846,8 @@ body{transition:background 1.6s ease}
 
 <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
 
-<!-- Moteur 3D : Three.js (local, hors-ligne) puis le monde ÆON -->
+<!-- Le Palimpseste vivant (fresque 2D) -->
+<script src="palimpseste.js"></script>
 
 <script>
 "use strict";
@@ -2167,6 +2171,8 @@ function doSpark(e){
   const btn=el("sparkBtn"), rect=btn.getBoundingClientRect();
   const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
   const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
+  // une goutte d'encre vivante tombe sur le palimpseste à chaque éveil
+  if(window.Palim&&Palim.isActive()) Palim.inkDrop(null,null, isCrit?2.2:1);
   const rp=document.createElement("span"); rp.className="ripple";
   rp.style.left=(cx-rect.left)+"px"; rp.style.top=(cy-rect.top)+"px";
   btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
@@ -3124,6 +3130,7 @@ safe("daily", checkDailyBonus);
 safe("render", render);
 safe("admin", ()=>Admin.init());
 safe("ticker", ()=>Ticker.start());
+safe("palim", ()=>{ if(window.Palim) Palim.init(); });
 setTimeout(()=>{ try{ checkPrologue(); }catch(e){} }, 800);
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });

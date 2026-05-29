@@ -1,8 +1,9 @@
 /* ÆON service worker — offline-capable, update-friendly */
-const CACHE = "aeon-v47";
+const CACHE = "aeon-v48";
 const ASSETS = [
   "./",
   "./index.html",
+  "./palimpseste.js",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
