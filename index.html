@@ -118,20 +118,18 @@ header{text-align:center;padding:20px 0 10px}
 #boostChip.bad #boostBar{background:linear-gradient(90deg,var(--red),#ffb454)}
 
 /* ===== Age banner ===== */
+/* Bannière d'âge épurée : le nom de l'âge est le titre, le reste s'efface. */
 .age-banner{
-  margin:6px auto;max-width:680px;text-align:center;
-  background:linear-gradient(180deg,var(--surface),var(--surface-2));
-  backdrop-filter:blur(16px) saturate(1.1);-webkit-backdrop-filter:blur(16px) saturate(1.1);
-  border:1px solid var(--hair);border-radius:16px;padding:14px 24px;
-  box-shadow:0 10px 44px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.04);
+  margin:6px auto;max-width:640px;text-align:center;
+  background:transparent;border:none;border-radius:0;padding:8px 16px;box-shadow:none;
 }
-.age-icon{font-size:34px;line-height:1;filter:drop-shadow(0 0 16px var(--gold-glow))}
-.age-name{font-family:'Cinzel',serif;font-size:23px;font-weight:700;margin-top:4px;letter-spacing:.10em;
+.age-icon{font-size:30px;line-height:1;filter:drop-shadow(0 0 14px var(--gold-glow))}
+.age-name{font-family:'Cinzel',serif;font-size:22px;font-weight:700;margin-top:3px;letter-spacing:.12em;
   color:var(--gold-soft)}
-.age-tag{color:var(--muted);font-size:12.5px;margin-top:4px;font-style:italic;letter-spacing:.02em}
-.age-progress{margin-top:10px}
-.objective{margin-top:9px;font-size:12.5px;color:var(--accent-light);letter-spacing:.03em;
-  background:rgba(111,134,200,.08);border:1px solid var(--hair);border-radius:9px;padding:8px 12px;line-height:1.45}
+.age-tag{color:var(--dim);font-size:12px;margin-top:3px;font-style:italic;letter-spacing:.02em}
+.age-progress{margin-top:12px}
+.objective{margin-top:10px;font-size:12px;color:var(--muted);letter-spacing:.02em;
+  background:transparent;border:none;border-top:1px solid var(--hair);border-radius:0;padding:9px 4px 0;line-height:1.45}
 .objective b{color:var(--gold-soft)}
 /* Missions : bandeau de 3 objectifs courts, toujours visibles */
 .missions{margin-top:10px;display:flex;flex-direction:column;gap:6px}
@@ -158,17 +156,16 @@ header{text-align:center;padding:20px 0 10px}
 .resources{
   display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(7px,1.6vw,10px);margin:10px 0;
 }
+/* Ressources : épurées, pas de boîte — la VALEUR domine, le label chuchote. */
 .res{
-  background:linear-gradient(180deg,var(--surface),var(--surface-2));
-  backdrop-filter:blur(12px) saturate(1.2);-webkit-backdrop-filter:blur(12px) saturate(1.2);
-  border:1px solid var(--border);border-radius:14px;padding:12px 14px;
-  display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);
+  background:transparent;border:none;border-radius:0;padding:6px 8px;
+  display:flex;align-items:center;gap:9px;box-shadow:none;
 }
-.res-ic{font-size:clamp(16px,4vw,20px);width:auto;text-align:center;opacity:.9;flex:0 0 auto}
+.res-ic{font-size:clamp(15px,3.6vw,18px);width:auto;text-align:center;opacity:.85;flex:0 0 auto}
 .res-meta{min-width:0;flex:1}
-.res-name{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);
+.res-name{font-size:9px;text-transform:uppercase;letter-spacing:.16em;color:var(--dim);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.res-val{font-size:clamp(15px,4vw,18px);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.01em;
+.res-val{font-size:clamp(16px,4.4vw,20px);font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.005em;color:var(--text);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .res-rate{font-size:clamp(10px,2.6vw,11px);color:var(--green);font-variant-numeric:tabular-nums;opacity:.85;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -183,18 +180,19 @@ header{text-align:center;padding:20px 0 10px}
 .spark-hint{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.18em;color:var(--dim);
   text-transform:uppercase;pointer-events:none;animation:hintPulse 3s ease-in-out infinite}
 @keyframes hintPulse{0%,100%{opacity:.5}50%{opacity:.95}}
+/* L'ÉVEIL = le héros incontesté de l'écran : grand, présent, mais sobre. */
 .spark-btn{
-  position:relative;width:min(260px,68vw);padding:13px 0;border:none;cursor:pointer;border-radius:13px;
-  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  position:relative;width:min(300px,76vw);padding:22px 0;border:none;cursor:pointer;border-radius:18px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(201,164,74,.10),rgba(18,17,24,.5) 75%);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border:1px solid var(--hair);color:var(--gold-soft);
-  font-family:'Cinzel',serif;font-weight:600;font-size:15px;letter-spacing:.14em;text-transform:uppercase;
-  box-shadow:0 8px 30px rgba(0,0,0,.5),inset 0 0 24px rgba(201,164,74,.06);
-  transition:transform .07s, box-shadow .2s, color .2s; overflow:hidden;
+  font-family:'Cinzel',serif;font-weight:600;font-size:20px;letter-spacing:.16em;text-transform:uppercase;
+  box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 0 30px rgba(201,164,74,.05);
+  transition:transform .1s var(--ease), box-shadow .25s var(--ease), color .25s var(--ease); overflow:hidden;
 }
-.spark-btn:hover{box-shadow:0 0 44px var(--gold-glow),inset 0 0 30px rgba(201,164,74,.12);color:#fff}
+.spark-btn:hover{box-shadow:0 0 50px var(--gold-glow),inset 0 0 36px rgba(201,164,74,.12);color:#fff}
 .spark-btn:active{transform:scale(.97)}
-.spark-btn small{display:block;font-family:'Inter';font-weight:500;font-size:11px;color:var(--muted);margin-top:6px;letter-spacing:.08em;text-transform:none}
+.spark-btn small{display:block;font-family:'Inter';font-weight:400;font-size:11px;color:var(--dim);margin-top:9px;letter-spacing:.1em;text-transform:none}
 .float{position:absolute;pointer-events:none;font-weight:800;color:var(--know);font-size:16px;animation:floatUp 1s ease-out forwards;z-index:5}
 @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
 
