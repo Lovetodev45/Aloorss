@@ -1728,19 +1728,8 @@ requestAnimationFrame(loop);
 // Démarrage du monde 3D
 if(World.init()){
   World.setAge(G.age, true);
-  syncWorld();                       // recrée les bâtiments existants dans la scène
-  // clic sur un bâtiment 3D → ouvre l'onglet Bâtiments + met en avant la carte
-  World.onPick((id)=>{
-    Sound.blip();
-    const tab=document.querySelector('.tab[data-tab="build"]');
-    if(tab) tab.click();
-    const card=(document.querySelector(`[data-buy="${id}"]`)||{}).closest?.(".card");
-    if(card){ card.scrollIntoView({behavior:"smooth",block:"center"});
-      card.classList.remove("bought"); void card.offsetWidth; card.classList.add("bought"); }
-    const b=BUILDINGS.find(x=>x.id===id);
-    if(b) toast(`${b.icon} <b>${b.name}</b> — ${b.desc}`);
-  });
-  // clic sur le sol de la planète → éveil (comme le bouton)
+  syncWorld();                       // illumine la planète selon le développement
+  // toucher la planète → éveiller l'esprit (les lumières de cité réagissent)
   World.onWorldClick(()=>{ doSpark(); });
 }
 World.setAge(G.age, true);
