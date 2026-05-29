@@ -313,9 +313,14 @@ header{text-align:center;padding:20px 0 10px}
 .audio-row input[type=range]{flex:1;accent-color:var(--gold);height:4px}
 .audio-row #volVal{flex:0 0 38px;text-align:right;font-variant-numeric:tabular-nums;color:var(--gold-soft)}
 .audio-row input[type=checkbox]{accent-color:var(--gold);width:18px;height:18px;cursor:pointer}
-.action-btn{padding:10px 18px;border:1px solid var(--border-glow);border-radius:11px;cursor:pointer;font-weight:700;font-size:13px;background:var(--surface);color:var(--accent-light);transition:all .15s}
-.action-btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--text)}
+.action-btn{padding:9px 16px;border:1px solid var(--hair);border-radius:10px;cursor:pointer;font-weight:600;font-size:12.5px;letter-spacing:.02em;background:transparent;color:var(--muted);transition:all .15s var(--ease)}
+.action-btn:hover{border-color:var(--accent);color:var(--text)}
+.action-btn.primary{border-color:var(--hair);color:var(--gold-soft)}
+.action-btn.ghost-icon{padding:9px 14px;font-size:16px;line-height:1;color:var(--dim)}
 .action-btn.install{background:linear-gradient(120deg,var(--gold),#ffe9a3);color:#2a1f00;border-color:transparent;box-shadow:0 0 18px var(--gold-glow)}
+/* menu secondaire repliable (épuration : on cache ce qui est rarement utilisé) */
+.more-menu{display:none;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.more-menu.open{display:flex;animation:fade .2s var(--ease)}
 .ach{background:linear-gradient(180deg,var(--surface),var(--surface-2));border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;gap:12px;align-items:center;transition:border-color .15s}
 .ach.done{border-color:var(--gold);background:linear-gradient(180deg,rgba(245,197,66,.08),var(--surface-2))}
 .ach.locked{opacity:.55}
@@ -699,10 +704,13 @@ body{transition:background 1.6s ease}
     </button>
     <div id="combo"></div>
     <div class="action-row">
-      <button class="action-btn" id="shareBtn">📣 Partager ma civilisation</button>
+      <button class="action-btn primary" id="shareBtn">📣 Partager</button>
+      <button class="action-btn ghost-icon" id="moreBtn" title="Plus">⋯</button>
+      <button class="action-btn install" id="installBtn" style="display:none">📲 Installer</button>
+    </div>
+    <div class="more-menu" id="moreMenu">
       <button class="action-btn" id="muteBtn">🔊 Son</button>
       <button class="action-btn" id="restartBtn">⟲ Recommencer</button>
-      <button class="action-btn install" id="installBtn" style="display:none">📲 Installer l'app</button>
     </div>
     <div class="audio-panel" id="audioPanel">
       <div class="audio-row">
@@ -1439,6 +1447,17 @@ function render(){
   renderMissions();
   checkAchievements();
   syncPalimpseste();
+  updateTabVisibility();
+}
+// Révélation progressive (Jobs) : ne montrer un onglet qu'au moment où il devient pertinent.
+function updateTabVisibility(){
+  const show=(tab,cond)=>{ const t=document.querySelector('.tab[data-tab="'+tab+'"]'); if(t) t.style.display=cond?"":"none"; };
+  show("tech", Object.keys(G.techs).length>0 || G.age>=0 && G.totalKnow>=150); // découvertes dès qu'on peut en acheter
+  show("goals", (G.clicks||0)>5 || Object.values(G.buildings).reduce((a,b)=>a+b,0)>0);
+  show("fresco", Object.values(G.buildings).reduce((a,b)=>a+b,0)>0); // la fresque a du sens dès qu'on a bâti
+  show("stats", G.age>=1 || G.sparks>0);
+  show("transcend", (typeof potentialSparks==="function" && potentialSparks()>0) || G.sparks>0);
+  // cosmos & trials gérés par leur propre render (déjà progressifs)
 }
 
 // Production réelle/s d'une unité d'un bâtiment (avec tous les multiplicateurs)
@@ -2509,6 +2528,7 @@ function stopHold(){ _holding=false; if(_holdTimer){ clearInterval(_holdTimer); 
 })();
 // (Toucher la planète elle-même éveille l'esprit — géré par World.onWorldClick au démarrage)
 el("shareBtn").addEventListener("click", doShare);
+el("moreBtn").addEventListener("click", ()=>{ el("moreMenu").classList.toggle("open"); });
 el("installBtn").addEventListener("click", async ()=>{
   if(!deferredPrompt){ toast("Sur iPhone : bouton Partager ⬆ → « Sur l'écran d'accueil »."); return; }
   deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null;
