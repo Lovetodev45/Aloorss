@@ -215,24 +215,28 @@ header{text-align:center;padding:20px 0 10px}
 /* ===== Cards grid ===== */
 /* auto-fit + min() : s'adapte de 3 colonnes (desktop) à 1 (mobile) sans débordement */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:clamp(8px,2vw,12px)}
+/* Cartes épurées (Jobs) : pas de bordure lourde ni d'ombre — l'espace et un fond
+   très discret suffisent. L'accent (gauche doré) ne marque que ce qui est actionnable. */
 .card{
-  background:linear-gradient(180deg,var(--surface),var(--surface-2));
-  backdrop-filter:blur(12px) saturate(1.15);-webkit-backdrop-filter:blur(12px) saturate(1.15);
-  border:1px solid var(--border);border-radius:14px;padding:14px;
-  display:flex;flex-direction:column;gap:8px;transition:border-color .15s,transform .12s;
-  box-shadow:0 6px 22px rgba(0,0,0,.32);
+  background:rgba(255,255,255,.022);
+  border:1px solid transparent;border-radius:12px;padding:14px;
+  display:flex;flex-direction:column;gap:8px;
+  transition:background .2s var(--ease),border-color .2s var(--ease),transform .12s var(--ease);
+  box-shadow:none; position:relative;
 }
-.card.affordable{border-color:var(--border-glow)}
-.card.locked{opacity:.5;filter:grayscale(.4)}
-.card.owned-tech{border-color:var(--green);background:linear-gradient(180deg,rgba(52,211,153,.07),var(--surface-2))}
-/* meilleur achat (pour les optimiseurs) */
-.card.bestbuy{border-color:var(--gold)}
+.card:hover{background:rgba(255,255,255,.05)}
+/* abordable : un fin liseré doré à gauche, rien de tapageur */
+.card.affordable{background:rgba(201,164,74,.05);box-shadow:inset 2px 0 0 var(--gold)}
+.card.locked{opacity:.4;filter:grayscale(.5)}
+.card.owned-tech{background:rgba(167,192,138,.05);box-shadow:inset 2px 0 0 var(--green)}
+/* meilleur achat : liseré or plus net + léger halo */
+.card.bestbuy{background:rgba(201,164,74,.08);box-shadow:inset 3px 0 0 var(--gold)}
 .best-tag{font-size:9px;color:var(--gold-soft);border:1px solid var(--gold);border-radius:10px;
   padding:1px 6px;letter-spacing:.06em;vertical-align:middle}
 .roi{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums;letter-spacing:.02em;
   border-top:1px solid var(--hair);padding-top:6px;margin-top:2px}
 .card-head{display:flex;align-items:center;gap:10px}
-.card-ic{font-size:24px;width:40px;height:40px;display:grid;place-items:center;background:rgba(0,0,0,.3);border-radius:10px;border:1px solid var(--hair)}
+.card-ic{font-size:26px;width:40px;height:40px;display:grid;place-items:center;background:transparent;border:none}
 .card-title{font-weight:600;font-size:14.5px;letter-spacing:.01em}
 .card-sub{font-size:11.5px;color:var(--dim);letter-spacing:.02em}
 .card-desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1}
@@ -472,10 +476,11 @@ body{transition:background 1.6s ease}
 @keyframes valPop{0%{transform:scale(1)}30%{transform:scale(1.16);color:var(--gold)}100%{transform:scale(1)}}
 
 /* Cartes abordables : pulsation d'invitation */
-.card.affordable{animation:cardGlow 2.4s ease-in-out infinite}
-@keyframes cardGlow{0%,100%{box-shadow:0 6px 22px rgba(0,0,0,.32)}50%{box-shadow:0 6px 22px rgba(0,0,0,.32),0 0 16px var(--gold-glow)}}
-.card.bought{animation:boughtFlash .55s ease}
-@keyframes boughtFlash{0%{box-shadow:0 0 0 rgba(94,224,160,0)}25%{box-shadow:0 0 28px rgba(94,224,160,.65);border-color:var(--green)}100%{box-shadow:none}}
+/* le liseré doré "respire" doucement sur les cartes abordables (subtil) */
+.card.affordable{animation:cardGlow 2.6s ease-in-out infinite}
+@keyframes cardGlow{0%,100%{box-shadow:inset 2px 0 0 var(--gold)}50%{box-shadow:inset 3px 0 0 var(--gold-soft)}}
+.card.bought{animation:boughtFlash .5s var(--ease)}
+@keyframes boughtFlash{0%{background:rgba(167,192,138,.28)}100%{background:rgba(255,255,255,.022)}}
 
 /* Bouton d'avancement prêt : pulsation dorée */
 .advance-btn:not(:disabled){animation:readyPulse 1.5s ease-in-out infinite}
