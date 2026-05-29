@@ -302,6 +302,12 @@ header{text-align:center;padding:20px 0 10px}
 .ach-check{font-size:20px;color:var(--gold)}
 #shareWrap{text-align:center}
 #shareCanvasImg{max-width:100%;border-radius:14px;border:1px solid var(--border-glow);margin:6px 0 14px}
+.share-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+.share-link{display:block;padding:10px 8px;border:1px solid var(--hair);border-radius:10px;
+  background:rgba(111,134,200,.08);color:var(--ink);text-decoration:none;font-size:12.5px;font-weight:600;
+  text-align:center;transition:all .15s}
+.share-link:hover{border-color:var(--accent);background:rgba(111,134,200,.2);transform:translateY(-1px)}
+@media(max-width:680px){ .share-grid{grid-template-columns:repeat(2,1fr)} }
 footer{text-align:center;color:var(--dim);font-size:12px;margin-top:40px;line-height:1.8}
 footer a{color:var(--muted)}
 
@@ -2947,35 +2953,65 @@ function buildShareCard(){
   x.fillText("lovetodev45.github.io/Aloorss", 600, 585);
   return c;
 }
+// URL canonique du jeu (toujours partagée, jamais l'URL locale/?v=…)
+const SHARE_URL="https://lovetodev45.github.io/Aloorss/";
 async function doShare(){
   const c=buildShareCard();
-  const url=location.href.split("#")[0];
   const age=AGES[G.age];
   const text=`J'ai mené l'humanité jusqu'à l'${age.name} ${age.icon} dans ÆON ! `+
     `🧠 ${fmt(G.totalKnow)} de connaissance · ✦ ${G.sparks} étincelles. Et toi ?`;
   c.toBlob(async (blob)=>{
     const file=blob? new File([blob],"aeon.png",{type:"image/png"}):null;
+    // partage natif avec image (mobile)
     if(navigator.share && file && navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({title:"ÆON", text, url, files:[file]}); return; }catch(e){}
+      try{ await navigator.share({title:"ÆON", text, url:SHARE_URL, files:[file]}); return; }catch(e){ if(e&&e.name==="AbortError") return; }
     }
-    if(navigator.share){ try{ await navigator.share({title:"ÆON", text, url}); return; }catch(e){} }
-    showShareFallback(c, text+" "+url);
+    // partage natif sans image
+    if(navigator.share){ try{ await navigator.share({title:"ÆON", text, url:SHARE_URL}); return; }catch(e){ if(e&&e.name==="AbortError") return; } }
+    // sinon : menu avec vrais liens de partage
+    showShareFallback(c, text);
   }, "image/png");
 }
 function showShareFallback(canvas, text){
   const dataUrl=canvas.toDataURL("image/png");
-  const m=el("modal");
+  const u=encodeURIComponent(SHARE_URL);
+  const t=encodeURIComponent(text);
+  const full=encodeURIComponent(text+" "+SHARE_URL);
+  // liens d'intention de partage (s'ouvrent avec le message pré-rempli)
+  const links=[
+    {n:"𝕏 / Twitter", u:`https://twitter.com/intent/tweet?text=${t}&url=${u}`},
+    {n:"WhatsApp",     u:`https://wa.me/?text=${full}`},
+    {n:"Telegram",     u:`https://t.me/share/url?url=${u}&text=${t}`},
+    {n:"Facebook",     u:`https://www.facebook.com/sharer/sharer.php?u=${u}`},
+    {n:"Reddit",       u:`https://www.reddit.com/submit?url=${u}&title=${t}`},
+    {n:"E-mail",       u:`mailto:?subject=${encodeURIComponent("Découvre ÆON")}&body=${full}`},
+  ];
+  const m=el("modal"); m.className="modal";
   m.innerHTML=`<div class="ev-ic">📣</div><h3>Partage ta civilisation</h3>
     <div id="shareWrap"><img id="shareCanvasImg" src="${dataUrl}" alt="Carte ÆON">
-    <div class="choices">
-      <button class="choice" id="copyShare"><b>📋 Copier le texte + lien</b></button>
+    <div class="share-grid">
+      ${links.map(l=>`<a class="share-link" href="${l.u}" target="_blank" rel="noopener">${l.n}</a>`).join("")}
+    </div>
+    <div class="choices" style="margin-top:10px">
+      <button class="choice" id="copyShare"><b>🔗 Copier le lien + texte</b></button>
       <button class="choice" id="dlShare"><b>⬇ Télécharger l'image</b></button>
       <button class="choice" id="closeShare">Fermer</button>
     </div></div>`;
   el("overlay").classList.add("show");
-  el("copyShare").onclick=()=>{ navigator.clipboard?.writeText(text).then(()=>toast("📋 Copié !")); };
+  el("copyShare").onclick=()=>{
+    const payload=text+" "+SHARE_URL;
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(payload).then(()=>toast("🔗 Lien copié !"),()=>fallbackCopy(payload));
+    } else fallbackCopy(payload);
+  };
   el("dlShare").onclick=()=>{ const a=document.createElement("a"); a.href=dataUrl; a.download="ma-civilisation-aeon.png"; a.click(); };
   el("closeShare").onclick=closeModal;
+}
+// copie de secours si l'API Clipboard est bloquée (http, vieux navigateurs)
+function fallbackCopy(txt){
+  try{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("🔗 Lien copié !"); }
+  catch(e){ toast("Copie impossible — sélectionnez le texte manuellement."); }
 }
 
 // ---------- Installation PWA ----------
