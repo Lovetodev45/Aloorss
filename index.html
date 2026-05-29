@@ -359,6 +359,12 @@ body{transition:background 1.6s ease}
   16%{opacity:1;transform:translate(-50%,-62%) scale(1.12) rotate(var(--rot,0deg))}
   100%{opacity:0;transform:translate(-50%,-190%) scale(1) rotate(var(--rot,0deg))}
 }
+/* anneau de choc rouge (crit) */
+.critring{position:fixed;pointer-events:none;z-index:249;width:30px;height:30px;left:0;top:0;
+  border:3px solid #ff4d4d;border-radius:50%;transform:translate(-50%,-50%) scale(.2);
+  box-shadow:0 0 24px 4px rgba(255,77,77,.6);animation:critRing .6s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes critRing{0%{opacity:.9;transform:translate(-50%,-50%) scale(.2)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(5)}}
 
 /* Compteur de combo */
 #combo{height:30px;margin-top:12px;font-family:'Cinzel',serif;font-weight:700;font-size:16px;
@@ -1358,6 +1364,7 @@ function buyBuilding(id){
   const card=(document.querySelector(`[data-buy="${id}"]`)||{}).closest?.(".card");
   if(card){ card.classList.add("bought"); const p=centerOf(card);
     FX.burst(p.x,p.y,{n:14,colors:["#7fcf9e","#9cc3ff","#f4e6c0"],speed:3.6,size:3}); }
+  snapshot();   // sauvegarde immédiate après achat
 }
 // pousse l'état des bâtiments vers la scène 3D
 function syncWorld(){ if(World.isActive()) World.syncBuildings(G.buildings); }
@@ -1794,9 +1801,11 @@ function doSpark(e){
     [{transform:"scale(.96)"},{transform:"scale(1.05)"},{transform:"scale(1)"}],
     {duration:170,easing:"ease-out"});
   if(isCrit){
-    popText(cx,cy,"CRIT ! +"+fmt(v),"#ffe07a",30+Math.min(combo,20));
-    FX.burst(cx,cy,{n:24,speed:5,size:4,colors:["#ffe07a","#c9a44a","#fff7d6"]});
-    shake(.6); Sound.crit();
+    // CRIT ROUGE — gros, percutant, jouissif
+    popText(cx,cy,"✦ CRIT ! +"+fmt(v),"#ff4d4d",40+Math.min(combo,24));
+    FX.burst(cx,cy,{n:40,speed:7,size:5,colors:["#ff4d4d","#ff7a3c","#ffd24a","#fff7d6"]});
+    critFlash(cx,cy);            // anneau de choc rouge
+    shake(1.1); Sound.crit();
   } else {
     const size=18+Math.min(combo,30)*0.55;
     popText(cx,cy,"+"+fmt(v),combo>=8?"#e3c884":"#9cc3ff",size);
@@ -2163,6 +2172,17 @@ const Sound=(()=>{
     o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+.02);
   }
   function seq(notes,type,vol,step){ notes.forEach((f,i)=>setTimeout(()=>tone(f,.28,type,vol),i*(step||80))); }
+  // souffle de bruit filtré = "impact" percutant (crit, transcendance)
+  function noise(dur,vol,freq,q){
+    if(!enabled||!ctx) return;
+    const t=ctx.currentTime, n=Math.floor(ctx.sampleRate*dur);
+    const buf=ctx.createBuffer(1,n,ctx.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const f=ctx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=freq||1200; f.Q.value=q||1.2;
+    const g=ctx.createGain(); g.gain.setValueAtTime(vol||.2,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    src.connect(f); f.connect(g); g.connect(master); src.start(t); src.stop(t+dur+.02);
+  }
   // ---- Ambiance cosmique : nappe sourde en boucle (très discrète) ----
   let ambOn=false, ambNodes=[];
   function ambient(start){
@@ -2191,15 +2211,21 @@ const Sound=(()=>{
     click(combo){ const step=Math.min(combo||0,40); const b=380+step*22;
       tone(b,.08,"triangle",.15,b*1.5);
       if(step>0 && step%10===0) tone(b*1.5,.12,"sine",.12); }, // palier sonore tous les 10
-    crit(){ tone(880,.06,"square",.18,1760); setTimeout(()=>tone(1318,.18,"sine",.18,2200),40); }, // crit éclatant
-    golden(){ seq([784,988,1318,1568,2093],"sine",.2,55); },  // carillon doré (frénésie)
-    buy(){ tone(300,.08,"square",.12,480); setTimeout(()=>tone(540,.1,"triangle",.12,700),55); },
-    tech(){ seq([523,659,784,1046],"sine",.15,70); },
-    age(){ seq([392,523,659,784,1046,1318],"triangle",.17,95); },
-    achieve(){ seq([659,880,1175],"sine",.18,90); },
-    transcend(){ seq([262,330,392,523,659,784,1046,1318],"sine",.2,110); },
+    // CRIT : impact percutant (souffle grave + montée aiguë + cloche) — ultra satisfaisant
+    crit(){ noise(.18,.32,420,.8); tone(180,.1,"square",.22,90);
+      setTimeout(()=>tone(660,.07,"square",.2,1320),35);
+      setTimeout(()=>tone(1568,.22,"sine",.22,2400),70);
+      setTimeout(()=>tone(2093,.3,"sine",.16),120); },
+    golden(){ seq([784,988,1318,1568,2093,2637],"sine",.22,52); },  // carillon doré (frénésie)
+    buy(){ tone(300,.07,"square",.13,520); setTimeout(()=>tone(620,.1,"triangle",.13,820),50);
+      noise(.05,.08,1800,2); },                                    // achat : "clac" satisfaisant
+    tech(){ seq([523,659,784,1046,1318],"sine",.16,65); noise(.12,.1,2000,1.5); },
+    age(){ noise(.4,.18,300,.6); seq([392,523,659,784,1046,1318,1568],"triangle",.18,90); },
+    achieve(){ seq([659,880,1175,1568],"sine",.2,85); },           // mission/succès : arpège brillant
+    transcend(){ noise(.6,.22,200,.5); seq([262,330,392,523,659,784,1046,1318,1568],"sine",.22,105); },
     event(){ tone(660,.12,"sine",.14,990); },
     blip(){ tone(880,.05,"sine",.08); },
+    levelup(){ seq([523,784,1046,1568],"triangle",.2,70); noise(.25,.14,500,.7); }, // passage d'âge
   };
 })();
 
@@ -2256,6 +2282,12 @@ function popText(x,y,text,color,size){
   d.style.color=color||"var(--know)"; d.style.fontSize=(size||20)+"px";
   d.style.setProperty("--rot",((Math.random()*10-5)|0)+"deg");
   document.body.appendChild(d); setTimeout(()=>d.remove(),1100);
+}
+// anneau de choc rouge pour les crits
+function critFlash(x,y){
+  const r=document.createElement("div"); r.className="critring";
+  r.style.left=x+"px"; r.style.top=y+"px";
+  document.body.appendChild(r); setTimeout(()=>r.remove(),650);
 }
 
 // ---------- Compteurs animés (lerp 60 fps) ----------
@@ -2572,7 +2604,7 @@ if(World.init()){
 World.setAge(G.age, true);
 // Sauvegarde fréquente (3 s) → un rechargement ne coûte au pire que ~3 s.
 function snapshot(){ G.lastTick=Date.now(); save(); }
-setInterval(snapshot, 3000);
+setInterval(snapshot, 2000);   // sauvegarde toutes les 2 s
 (function(){
   const isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   const standalone=window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
