@@ -31,8 +31,8 @@ html,body{height:100%}
 body{
   font-family:'Inter',-apple-system,system-ui,sans-serif;
   background:#04040c;
-  color:var(--text); line-height:1.5; overflow-x:hidden;
-  -webkit-font-smoothing:antialiased; min-height:100%;
+  color:var(--text); line-height:1.5; overflow:hidden;   /* zéro scroll de page : tout tient à l'écran */
+  -webkit-font-smoothing:antialiased; height:100%;
   -webkit-tap-highlight-color:transparent;      /* pas de flash bleu au tap (mobile) */
   text-rendering:optimizeLegibility;
 }
@@ -51,8 +51,19 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:
     radial-gradient(ellipse 90% 70% at 50% 30%,rgba(40,46,90,.18),transparent 60%),
     radial-gradient(ellipse 120% 100% at 50% 50%,transparent 45%,rgba(3,4,10,.7) 100%)}
 
-.wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;
-  padding:0 16px calc(80px + env(safe-area-inset-bottom))}
+/* Coque plein écran : tient toujours dans la hauteur visible (dvh = gère les barres mobiles).
+   Seul le contenu du panneau actif défile, en interne. Zéro scroll de page. */
+.wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;width:100%;
+  height:100vh;height:100dvh;display:flex;flex-direction:column;
+  padding:max(8px,env(safe-area-inset-top)) 16px calc(8px + env(safe-area-inset-bottom));
+  padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+/* le bloc des panneaux prend l'espace restant et défile en interne */
+#panelHost{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.panel.active{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-right:4px;padding-bottom:8px}
+/* header/ressources/spark/tabs ne rétrécissent pas */
+header,.age-banner,.resources,.spark-zone,.tabs{flex:0 0 auto}
+footer{flex:0 0 auto}
 
 /* ===== Header ===== */
 header{text-align:center;padding:34px 0 18px}
@@ -303,6 +314,17 @@ body{transition:background 1.6s ease}
 #flash.go{animation:flashAnim 1s ease}
 @keyframes flashAnim{0%{opacity:0}9%{opacity:.9}100%{opacity:0}}
 
+/* ===== Étincelle Dorée (orbe-récompense aléatoire) ===== */
+#goldenSpark{position:fixed;z-index:250;width:58px;height:58px;border:none;cursor:pointer;
+  border-radius:50%;display:none;padding:0;
+  background:radial-gradient(circle at 38% 35%,#fff7d6,#ffe07a 40%,#c9a44a 70%,rgba(201,164,74,0) 100%);
+  box-shadow:0 0 30px 8px rgba(255,224,122,.55),0 0 60px 16px rgba(201,164,74,.3);
+  animation:goldPulse .9s ease-in-out infinite;-webkit-tap-highlight-color:transparent}
+#goldenSpark.show{display:block}
+#goldenSpark::after{content:"✦";position:absolute;inset:0;display:grid;place-items:center;
+  font-size:26px;color:#3a2a08;text-shadow:0 0 6px #fff}
+@keyframes goldPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+
 /* Secousse d'écran */
 .shake{animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
 @keyframes shake{
@@ -390,14 +412,23 @@ body{transition:background 1.6s ease}
 
 /* Téléphones */
 @media(max-width:680px){
-  header{padding:22px 0 12px}
-  .logo{letter-spacing:.18em;font-size:clamp(34px,11vw,52px)}
-  .tagline{font-size:10px;letter-spacing:.34em}
-  .age-banner{padding:15px 16px;border-radius:14px;margin-top:16px}
-  .age-name{font-size:20px}
-  .resources{grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0}
-  .res{padding:10px 11px;border-radius:11px}
-  .res-val{font-size:16px}
+  /* top compact pour laisser la place au panneau défilant — zéro scroll de page */
+  header{padding:8px 0 4px}
+  .logo{letter-spacing:.16em;font-size:clamp(26px,8vw,40px)}
+  .tagline{font-size:9px;letter-spacing:.32em;margin-top:4px}
+  .age-banner{padding:11px 14px;border-radius:13px;margin:10px auto 0}
+  .age-icon{font-size:30px}
+  .age-name{font-size:18px}
+  .age-tag{font-size:11px}
+  .objective{font-size:11.5px;padding:7px 10px;margin-top:9px}
+  .resources{grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
+  .res{padding:8px 7px;border-radius:10px;flex-direction:column;gap:3px;text-align:center}
+  .res-ic{display:none}
+  .res-name{font-size:8px;letter-spacing:.06em}
+  .res-val{font-size:14px}
+  .res-rate{font-size:9px}
+  .spark-zone{margin:8px 0;gap:6px}
+  .footer,footer{display:none}            /* gagne de la hauteur sur mobile */
   /* onglets : défilement horizontal au lieu de wrap encombré */
   .tabs{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;
     -webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;
@@ -435,10 +466,21 @@ body{transition:background 1.6s ease}
 }
 
 /* Mode paysage bas (téléphone couché) : compacte le header */
-@media(max-height:480px) and (orientation:landscape){
-  header{padding:12px 0 6px}
-  .age-banner{margin-top:10px;padding:12px 16px}
-  .spark-zone{margin:10px 0}
+@media(max-height:520px) and (orientation:landscape){
+  header{padding:4px 0 2px}
+  .logo{font-size:24px}
+  .tagline{display:none}
+  .age-banner{margin-top:6px;padding:8px 14px}
+  .age-icon,.age-tag{display:none}
+  .resources{margin:6px 0;gap:6px}
+  .spark-zone{margin:5px 0}
+  .spark-btn{padding:9px 0}
+  footer{display:none}
+}
+/* écran court (peu de hauteur) même en portrait : on compacte */
+@media(max-height:680px){
+  header{padding:6px 0 2px}
+  .spark-zone{margin:6px 0}
 }
 
 /* ===== Panneau ADMIN / test ===== */
@@ -474,6 +516,7 @@ body{transition:background 1.6s ease}
 <canvas id="fx"></canvas>
 <canvas id="confetti"></canvas>
 <div id="flash"></div>
+<button id="goldenSpark" aria-label="Étincelle dorée"></button>
 <div class="wrap">
   <header>
     <div class="logo">ÆON</div>
@@ -522,7 +565,8 @@ body{transition:background 1.6s ease}
     <div class="tab" data-tab="trials" id="trialsTab" style="display:none">⟁ Épreuves <span class="badge" id="trialsBadge" style="display:none">0</span></div>
   </div>
 
-  <!-- Panels -->
+  <!-- Panels (défilement interne) -->
+  <div id="panelHost">
   <div class="panel active" id="panel-build"><div class="grid" id="buildGrid"></div></div>
   <div class="panel" id="panel-tech"><div class="grid" id="techGrid"></div></div>
 
@@ -587,6 +631,7 @@ body{transition:background 1.6s ease}
     <div id="trialBanner"></div>
     <div class="grid" id="trialGrid"></div>
   </div>
+  </div><!-- /#panelHost -->
 
   <footer>
     ÆON — une épopée incrémentale · de la première étincelle aux étoiles<br>
@@ -669,6 +714,7 @@ body{transition:background 1.6s ease}
     <div class="admin-grid">
       <button class="admin-btn" data-adm="fx-confetti">🎉 Confettis</button>
       <button class="admin-btn" data-adm="fx-event">🎲 Évènement</button>
+      <button class="admin-btn" data-adm="golden">✦ Étincelle dorée</button>
       <button class="admin-btn" data-adm="reset-flags">Reset histoire vue</button>
       <button class="admin-btn danger" data-adm="hard-reset">⟲ Reset total</button>
     </div>
@@ -972,6 +1018,7 @@ function loop(now){
 
   updateNumbers();
   feedOrganism();
+  Golden.tick();
   if(now-lastRender>120){ render(); lastRender=now; }
   requestAnimationFrame(loop);
 }
@@ -1644,30 +1691,33 @@ function toast(html, ms=4200){
 function doSpark(e){
   bumpCombo();
   const wh=el("worldHint"); if(wh && (G.clicks||0)>2){ wh.style.transition="opacity .8s"; wh.style.opacity="0"; }
-  const v=clickValue()*comboMult();
+  // CRIT aléatoire (~8%) : ×7 — variable reward, le sel de l'addiction
+  const isCrit=Math.random()<0.08;
+  let v=clickValue()*comboMult();
+  if(isCrit) v*=7;
   G.res.know+=v; G.totalKnow+=v;
   G.clicks=(G.clicks||0)+1;
   G.runClicks=(G.runClicks||0)+1;   // pour l'épreuve "L'Âge muet"
   const btn=el("sparkBtn"), rect=btn.getBoundingClientRect();
   const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
   const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
-  // onde au point de clic
   const rp=document.createElement("span"); rp.className="ripple";
   rp.style.left=(cx-rect.left)+"px"; rp.style.top=(cy-rect.top)+"px";
   btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
-  // punch du bouton (WAAPI : compose avec la respiration en box-shadow)
   if(btn.animate) btn.animate(
     [{transform:"scale(.96)"},{transform:"scale(1.05)"},{transform:"scale(1)"}],
     {duration:170,easing:"ease-out"});
-  // nombre flottant qui grossit avec le combo
-  const size=18+Math.min(combo,30)*0.55;
-  const col=combo>=20?"#e3c884":combo>=8?"#9cc3ff":"#9cc3ff";
-  popText(cx,cy,"+"+fmt(v),col,size);
-  // particules + son + pulsation de la planète 3D
-  FX.burst(cx,cy,{n:combo>=15?12:7,colors:["#9cc3ff","#9cc3ff","#f4e6c0"],speed:3,size:2.6,up:1.4});
+  if(isCrit){
+    popText(cx,cy,"CRIT ! +"+fmt(v),"#ffe07a",30+Math.min(combo,20));
+    FX.burst(cx,cy,{n:24,speed:5,size:4,colors:["#ffe07a","#c9a44a","#fff7d6"]});
+    shake(.6); Sound.crit();
+  } else {
+    const size=18+Math.min(combo,30)*0.55;
+    popText(cx,cy,"+"+fmt(v),combo>=8?"#e3c884":"#9cc3ff",size);
+    FX.burst(cx,cy,{n:combo>=15?12:7,colors:["#9cc3ff","#9cc3ff","#f4e6c0"],speed:3,size:2.6,up:1.4});
+    Sound.click(combo);
+  }
   World.ping(0.35+Math.min(combo,30)*0.02);
-  Sound.click(combo);
-  // récompense visuelle tous les 25 combos
   if(combo>0 && combo%25===0){ shake(.7);
     FX.burst(cx,cy,{n:26,speed:5,size:4,colors:["#c9a44a","#9cc3ff","#f4e6c0"]}); }
 }
@@ -1675,6 +1725,63 @@ function flashAdvance(){
   const b=el("ageIcon"); b.style.transition="transform .4s"; b.style.transform="scale(1.5) rotate(8deg)";
   setTimeout(()=>b.style.transform="",400);
 }
+
+// ============================================================
+//   ÉTINCELLE DORÉE — orbe-récompense aléatoire (façon "golden cookie")
+//   Apparaît à intervalles imprévisibles, dérive, disparaît. L'attraper
+//   donne une grosse récompense aléatoire. C'est LE crochet d'addiction.
+// ============================================================
+const Golden=(()=>{
+  const el2=()=>document.getElementById("goldenSpark");
+  let nextAt=Date.now()+rand(45,90)*1000;   // 1re apparition 45–90 s
+  let activeUntil=0, driftX=0, driftY=0, px=0, py=0, vx=0, vy=0;
+  function rand(a,b){ return a+Math.random()*(b-a); }
+  function schedule(){ nextAt=Date.now()+rand(60,140)*1000; }   // ensuite toutes les 1–2,3 min
+  function spawn(){
+    const g=el2(); if(!g) return;
+    px=rand(0.15,0.85)*innerWidth; py=rand(0.2,0.7)*innerHeight;
+    vx=rand(-0.4,0.4); vy=rand(-0.25,0.25);
+    g.style.left=(px-29)+"px"; g.style.top=(py-29)+"px";
+    g.classList.add("show"); activeUntil=Date.now()+13000;   // 13 s pour l'attraper
+    Sound.golden();
+    toast("✦ Une <b>Étincelle Dorée</b> scintille… attrapez-la !",2600);
+  }
+  function vanish(){ const g=el2(); if(g) g.classList.remove("show"); activeUntil=0; schedule(); }
+  function tick(){
+    const g=el2(); if(!g) return;
+    if(activeUntil){
+      if(Date.now()>activeUntil){ vanish(); return; }
+      px+=vx; py+=vy;
+      if(px<40||px>innerWidth-40) vx*=-1;
+      if(py<60||py>innerHeight-80) vy*=-1;
+      g.style.left=(px-29)+"px"; g.style.top=(py-29)+"px";
+    } else if(Date.now()>nextAt && !document.hidden && G.totalKnow>100){
+      spawn();
+    }
+  }
+  function grab(){
+    const g=el2(); if(!g||!activeUntil) return;
+    activeUntil=0; g.classList.remove("show"); schedule();
+    // récompense aléatoire (variable reward) : frénésie OU jackpot
+    const roll=Math.random();
+    if(roll<0.55){
+      boost(7,20); // FRÉNÉSIE : ×7 production 20 s
+      bigText("FRÉNÉSIE ×7 !");
+    } else {
+      const jack=Math.max(rateOf("know")*180, 50)* (1+Math.random()*2);
+      G.res.know+=jack; G.totalKnow+=jack;
+      bigText("JACKPOT +"+fmt(jack)+" 🧠");
+    }
+    FX.confetti(160); flash(); shake(1.0); Sound.golden();
+    render(); save();
+  }
+  function bigText(t){
+    popText(innerWidth/2, innerHeight*0.4, t, "#ffe07a", 34);
+  }
+  return {tick,grab,spawn};
+})();
+// clic sur l'orbe
+document.getElementById("goldenSpark").addEventListener("click",()=>Golden.grab());
 
 // ---------- Garde-fou ressources ----------
 function sanitizeResources(){
@@ -1970,12 +2077,36 @@ const Sound=(()=>{
     o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+.02);
   }
   function seq(notes,type,vol,step){ notes.forEach((f,i)=>setTimeout(()=>tone(f,.28,type,vol),i*(step||80))); }
+  // ---- Ambiance cosmique : nappe sourde en boucle (très discrète) ----
+  let ambOn=false, ambNodes=[];
+  function ambient(start){
+    if(!ctx) return;
+    if(start && !ambOn){
+      ambOn=true;
+      const g=ctx.createGain(); g.gain.value=0; g.connect(master);
+      g.gain.linearRampToValueAtTime(0.05, ctx.currentTime+3);
+      // deux oscillateurs très graves légèrement désaccordés = profondeur cosmique
+      [55,55.4,82.5].forEach(f=>{ const o=ctx.createOscillator(); o.type="sine";
+        o.frequency.value=f; const lfo=ctx.createOscillator(),lg=ctx.createGain();
+        lfo.frequency.value=0.07; lg.gain.value=2; lfo.connect(lg); lg.connect(o.frequency);
+        o.connect(g); o.start(); lfo.start(); ambNodes.push(o,lfo); });
+      ambNodes.push(g);
+    } else if(!start && ambOn){
+      ambOn=false; ambNodes.forEach(n=>{ try{ n.stop&&n.stop(); }catch(e){} }); ambNodes=[];
+    }
+  }
   return {
     init,
-    toggle(){ enabled=!enabled; return enabled; },
+    toggle(){ enabled=!enabled; if(enabled) ambient(true); else ambient(false); return enabled; },
     isOn(){ return enabled; },
     set(v){ enabled=v; },
-    click(combo){ const b=400+Math.min(combo||0,45)*16; tone(b,.09,"triangle",.16,b*1.6); },
+    ambient(b){ if(enabled) ambient(b); },
+    // clic : échelle de hauteur MONTANTE avec le combo (le "coin ladder" addictif)
+    click(combo){ const step=Math.min(combo||0,40); const b=380+step*22;
+      tone(b,.08,"triangle",.15,b*1.5);
+      if(step>0 && step%10===0) tone(b*1.5,.12,"sine",.12); }, // palier sonore tous les 10
+    crit(){ tone(880,.06,"square",.18,1760); setTimeout(()=>tone(1318,.18,"sine",.18,2200),40); }, // crit éclatant
+    golden(){ seq([784,988,1318,1568,2093],"sine",.2,55); },  // carillon doré (frénésie)
     buy(){ tone(300,.08,"square",.12,480); setTimeout(()=>tone(540,.1,"triangle",.12,700),55); },
     tech(){ seq([523,659,784,1046],"sine",.15,70); },
     age(){ seq([392,523,659,784,1046,1318],"triangle",.17,95); },
@@ -2238,8 +2369,8 @@ function checkDailyBonus(){
 // ---------- Bouton son ----------
 el("muteBtn").onclick=()=>{ Sound.init(); const on=Sound.toggle(); G.muted=!on;
   el("muteBtn").textContent = on ? "🔊 Son" : "🔇 Muet"; if(on) Sound.blip(); save(); };
-// Débloque l'audio au premier geste (politique navigateur)
-addEventListener("pointerdown", ()=>Sound.init(), {once:true});
+// Débloque l'audio au premier geste (politique navigateur) + lance l'ambiance cosmique
+addEventListener("pointerdown", ()=>{ Sound.init(); Sound.ambient(true); }, {once:true});
 
 // ============================================================
 //   PANNEAU ADMIN / TEST — pour valider le jeu de bout en bout
@@ -2290,6 +2421,7 @@ const Admin=(()=>{
     "story-ending":()=>{ showSecretEnding(); },
     "fx-confetti":()=>{ FX.confetti(220); flash(); Sound.transcend(); },
     "fx-event":()=>{ triggerEvent(); },
+    "golden":()=>{ Golden.spawn(); },
     "reset-flags":()=>{ G.prologueSeen=false; G.revelationSeen=false; G.deepRevSeen=false;
       G.endingSeen=false; G.transcendanceAnnounced=false;
       toast("🛠️ Drapeaux narratifs réinitialisés (écrans revisibles)."); },
