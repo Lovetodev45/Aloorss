@@ -2492,10 +2492,15 @@ function renderChronicleLog(){
 // ---------- Moteur audio procédural (zéro fichier) ----------
 const Sound=(()=>{
   let ctx,master,enabled=true;
-  function init(){ if(ctx) return;
-    try{ ctx=new (window.AudioContext||window.webkitAudioContext)();
-      master=ctx.createGain(); master.gain.value=(G&&G.volume!=null)?G.volume:.45; master.connect(ctx.destination);
-    }catch(e){} }
+  function init(){
+    if(!ctx){
+      try{ ctx=new (window.AudioContext||window.webkitAudioContext)();
+        master=ctx.createGain(); master.gain.value=(G&&G.volume!=null)?G.volume:.45; master.connect(ctx.destination);
+      }catch(e){ return; }
+    }
+    // navigateur : le contexte démarre souvent "suspended" → le réveiller à chaque geste
+    if(ctx.state==="suspended" && ctx.resume) ctx.resume();
+  }
   function tone(freq,dur,type,vol,slideTo){
     if(!enabled||!ctx) return;
     const t=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain();
@@ -2845,8 +2850,12 @@ function applyAudioPrefs(){
   const v=(G.volume!=null?G.volume:0.45);
   el("volSlider").value=Math.round(v*100); el("volVal").textContent=Math.round(v*100)+"%";
 }
-// Débloque l'audio au premier geste (politique navigateur). Pas d'ambiance de fond.
-addEventListener("pointerdown", ()=>{ Sound.init(); Sound.setVolume(G.volume!=null?G.volume:0.45); }, {once:true});
+// Débloque/réveille l'audio à chaque geste (politique navigateur : le contexte peut rester suspendu).
+let _audioReady=false;
+function wakeAudio(){ Sound.init(); if(!_audioReady){ Sound.setVolume(G.volume!=null?G.volume:0.45); _audioReady=true; } }
+addEventListener("pointerdown", wakeAudio);
+addEventListener("keydown", wakeAudio);
+addEventListener("touchstart", wakeAudio, {passive:true});
 
 // ============================================================
 //   PANNEAU ADMIN / TEST — pour valider le jeu de bout en bout
