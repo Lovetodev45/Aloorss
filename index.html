@@ -574,6 +574,7 @@ body{transition:background 1.6s ease}
     <div class="action-row">
       <button class="action-btn" id="shareBtn">📣 Partager ma civilisation</button>
       <button class="action-btn" id="muteBtn">🔊 Son</button>
+      <button class="action-btn" id="restartBtn">⟲ Recommencer</button>
       <button class="action-btn install" id="installBtn" style="display:none">📲 Installer l'app</button>
     </div>
     <div class="audio-panel" id="audioPanel">
@@ -2122,12 +2123,17 @@ el("tabs").addEventListener("click", e=>{
 el("exportBtn").onclick=exportSave;
 el("importBtn").onclick=()=>el("fileInput").click();
 el("fileInput").onchange=e=>{ if(e.target.files[0]) importSave(e.target.files[0]); };
-el("resetBtn").onclick=()=>showModal({
-  icon:"⚠️", title:"Tout réinitialiser ?", text:"Cette action efface définitivement votre civilisation et toutes vos étincelles. Irréversible.",
-  choices:[
-    {label:"<b>Oui</b>, tout effacer", fn:()=>{ localStorage.removeItem(SAVE_KEY); location.reload(); }},
-    {label:"Annuler", fn:()=>{}},
-  ]});
+function confirmRestart(){
+  showModal({
+    icon:"⚠️", title:"Recommencer de zéro ?",
+    text:"Cette action efface <b>définitivement TOUT</b> : votre civilisation, vos étincelles, vos Singularités, vos Décrets, vos héritages et vos épreuves accomplies. Vous repartez de l'Âge de Pierre. <b>Irréversible.</b>",
+    choices:[
+      {label:"<b>Oui</b>, tout effacer et recommencer", fn:()=>{ localStorage.removeItem(SAVE_KEY); location.reload(); }},
+      {label:"Annuler", fn:()=>{}},
+    ]});
+}
+el("resetBtn").onclick=confirmRestart;
+el("restartBtn").onclick=confirmRestart;
 
 // raccourci clavier : barre espace = éveiller
 document.addEventListener("keydown", e=>{
