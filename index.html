@@ -2969,28 +2969,64 @@ function buildShareCard(){
 }
 // URL canonique du jeu (toujours partagée, jamais l'URL locale/?v=…)
 const SHARE_URL="https://lovetodev45.github.io/Aloorss/";
+// ---------- Instantané de civilisation encodé dans le lien (zéro serveur) ----------
+// On encode un résumé compact (pas toute la sauvegarde) en base64-URL dans le hash #civ=...
+function encodeCiv(){
+  const snap={
+    a:G.age, k:Math.round(G.totalKnow), e:Math.round(G.res.energy),
+    c:Math.round(G.res.culture), p:Math.round(G.res.pop),
+    s:G.sparks||0, si:G.singularities||0, aw:G.awakenings||0,
+    b:Object.values(G.buildings).reduce((x,y)=>x+y,0),
+    t:Object.keys(G.techs).length,
+    ac:Object.keys(G.achievements||{}).length,
+    leg:G.legacies||{},
+    nm:(G.civName||"").slice(0,24),
+    v:1
+  };
+  try{
+    const json=JSON.stringify(snap);
+    // base64 URL-safe (gère l'UTF-8)
+    const b64=btoa(unescape(encodeURIComponent(json))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+    return b64;
+  }catch(e){ return ""; }
+}
+function decodeCiv(b64){
+  try{
+    const s=b64.replace(/-/g,"+").replace(/_/g,"/");
+    const json=decodeURIComponent(escape(atob(s)));
+    const d=JSON.parse(json);
+    if(!d||typeof d.a!=="number") return null;
+    return d;
+  }catch(e){ return null; }
+}
+function shareUrlWithCiv(){
+  const code=encodeCiv();
+  return code? SHARE_URL+"#civ="+code : SHARE_URL;
+}
 async function doShare(){
   const c=buildShareCard();
   const age=AGES[G.age];
+  const url=shareUrlWithCiv();   // lien personnalisé : contient l'instantané de TA civilisation
   const text=`J'ai mené l'humanité jusqu'à l'${age.name} ${age.icon} dans ÆON ! `+
     `🧠 ${fmt(G.totalKnow)} de connaissance · ✦ ${G.sparks} étincelles. Et toi ?`;
   c.toBlob(async (blob)=>{
     const file=blob? new File([blob],"aeon.png",{type:"image/png"}):null;
     // partage natif avec image (mobile)
     if(navigator.share && file && navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({title:"ÆON", text, url:SHARE_URL, files:[file]}); return; }catch(e){ if(e&&e.name==="AbortError") return; }
+      try{ await navigator.share({title:"ÆON", text, url, files:[file]}); return; }catch(e){ if(e&&e.name==="AbortError") return; }
     }
     // partage natif sans image
-    if(navigator.share){ try{ await navigator.share({title:"ÆON", text, url:SHARE_URL}); return; }catch(e){ if(e&&e.name==="AbortError") return; } }
+    if(navigator.share){ try{ await navigator.share({title:"ÆON", text, url}); return; }catch(e){ if(e&&e.name==="AbortError") return; } }
     // sinon : menu avec vrais liens de partage
-    showShareFallback(c, text);
+    showShareFallback(c, text, url);
   }, "image/png");
 }
-function showShareFallback(canvas, text){
+function showShareFallback(canvas, text, url){
+  url=url||SHARE_URL;
   const dataUrl=canvas.toDataURL("image/png");
-  const u=encodeURIComponent(SHARE_URL);
+  const u=encodeURIComponent(url);
   const t=encodeURIComponent(text);
-  const full=encodeURIComponent(text+" "+SHARE_URL);
+  const full=encodeURIComponent(text+" "+url);
   // liens d'intention de partage (s'ouvrent avec le message pré-rempli)
   const links=[
     {n:"𝕏 / Twitter", u:`https://twitter.com/intent/tweet?text=${t}&url=${u}`},
@@ -3013,7 +3049,7 @@ function showShareFallback(canvas, text){
     </div></div>`;
   el("overlay").classList.add("show");
   el("copyShare").onclick=()=>{
-    const payload=text+" "+SHARE_URL;
+    const payload=text+" "+url;
     if(navigator.clipboard&&navigator.clipboard.writeText){
       navigator.clipboard.writeText(payload).then(()=>toast("🔗 Lien copié !"),()=>fallbackCopy(payload));
     } else fallbackCopy(payload);
@@ -3026,6 +3062,51 @@ function fallbackCopy(txt){
   try{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
     document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("🔗 Lien copié !"); }
   catch(e){ toast("Copie impossible — sélectionnez le texte manuellement."); }
+}
+
+// ---------- Voir la civilisation d'un ami via son lien (#civ=...) ----------
+let _friendShown=false;
+function checkFriendLink(){
+  const hash=location.hash||"";
+  const m=hash.match(/civ=([A-Za-z0-9_\-]+)/);
+  if(!m) return;
+  const d=decodeCiv(m[1]); if(!d) return;
+  _friendShown=true;
+  showFriendCiv(d);
+}
+function showFriendCiv(d){
+  const age=AGES[Math.max(0,Math.min(AGES.length-1,d.a))]||AGES[0];
+  // résumé des héritages
+  let leg="";
+  if(d.leg && Object.keys(d.leg).length && typeof LEGACIES!=="undefined"){
+    leg=LEGACIES.filter(L=>d.leg[L.id]).map(L=>L.icon+(d.leg[L.id])).join(" ");
+  }
+  const m=el("modal"); m.className="modal kind-dilemma";
+  m.innerHTML=`<div class="ev-tag dilemma">👥 Civilisation partagée</div>
+    <div class="ev-ic">${age.icon}</div>
+    <h3>${d.nm? d.nm : "La civilisation d'un ami"}</h3>
+    <p style="margin-bottom:14px">Elle a atteint l'<b>${age.name}</b>.</p>
+    <div class="stat-box" style="text-align:left;margin-bottom:14px">
+      <div class="stat-row"><span>🧠 Connaissance totale</span><b>${fmt(d.k||0)}</b></div>
+      <div class="stat-row"><span>⚡ Énergie</span><b>${fmt(d.e||0)}</b></div>
+      <div class="stat-row"><span>✨ Culture</span><b>${fmt(d.c||0)}</b></div>
+      <div class="stat-row"><span>👥 Population</span><b>${fmt(d.p||0)}</b></div>
+      <div class="stat-row"><span>🏛️ Bâtiments · 🔬 Découvertes</span><b>${d.b||0} · ${d.t||0}</b></div>
+      <div class="stat-row"><span>✦ Étincelles${d.si?" · ✸ Singularités":""}</span><b>${d.s||0}${d.si?" · "+d.si:""}</b></div>
+      ${(d.aw)?`<div class="stat-row"><span>🌌 Éveils cosmiques</span><b>${d.aw}</b></div>`:""}
+      ${leg?`<div class="stat-row"><span>⟡ Héritages</span><b>${leg}</b></div>`:""}
+      <div class="stat-row"><span>🏆 Succès</span><b>${d.ac||0}</b></div>
+    </div>
+    <div class="choices">
+      <button class="choice" id="friendPlay"><b>✦ Jouer ma propre civilisation</b></button>
+    </div>`;
+  el("overlay").classList.add("show");
+  el("friendPlay").onclick=()=>{
+    // nettoie le hash pour ne pas réafficher au prochain reload, puis lance le jeu normal
+    try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){ location.hash=""; }
+    closeModal();
+    if(!G.prologueSeen) setTimeout(()=>{ try{ checkPrologue(); }catch(e){} },300);
+  };
 }
 
 // ---------- Installation PWA ----------
@@ -3181,7 +3262,9 @@ safe("render", render);
 safe("admin", ()=>Admin.init());
 safe("ticker", ()=>Ticker.start());
 safe("palim", ()=>{ if(window.Palim) Palim.init(); });
-setTimeout(()=>{ try{ checkPrologue(); }catch(e){} }, 800);
+// Un ami a partagé sa civilisation ? On l'affiche (sans toucher à ta partie).
+safe("friend", checkFriendLink);
+setTimeout(()=>{ try{ if(!_friendShown) checkPrologue(); }catch(e){} }, 800);
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }
