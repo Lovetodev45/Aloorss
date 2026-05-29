@@ -2871,16 +2871,12 @@ const Sound=(()=>{
       ambOn=true;
       // bus d'ambiance avec écho doux (réverbe simplifiée)
       ambGain=ctx.createGain(); ambGain.gain.value=0; ambGain.connect(master);
-      ambGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+5);  // fondu d'entrée lent
-      const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1600; lp.connect(ambGain);
-      ambDelay=ctx.createDelay(); ambDelay.delayTime.value=0.38;
-      const fb=ctx.createGain(); fb.gain.value=0.34; ambDelay.connect(fb); fb.connect(ambDelay); ambDelay.connect(lp);
+      ambGain.gain.linearRampToValueAtTime(0.6, ctx.currentTime+4);  // fondu d'entrée
+      const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=2200; lp.connect(ambGain);
+      ambDelay=ctx.createDelay(); ambDelay.delayTime.value=0.42;
+      const fb=ctx.createGain(); fb.gain.value=0.36; ambDelay.connect(fb); fb.connect(ambDelay); ambDelay.connect(lp);
       ambNodes.push(ambGain,lp,ambDelay,fb);
-      // NAPPE : 3 sinus doux légèrement désaccordés (accord La mineur aérien)
-      [220,277.2,329.6].forEach((f,i)=>{ const o=ctx.createOscillator(); o.type="sine"; o.frequency.value=f;
-        const og=ctx.createGain(); og.gain.value=i===0?0.10:0.05; o.connect(og); og.connect(lp);
-        const lfo=ctx.createOscillator(),lg=ctx.createGain(); lfo.frequency.value=0.04+i*0.015; lg.gain.value=0.8;
-        lfo.connect(lg); lg.connect(o.frequency); o.start(); lfo.start(); ambNodes.push(o,lfo,og); });
+      // PAS de nappe continue (c'était le bourdon "zzzz") → uniquement l'arpège pincé + écho.
       // ARPÈGE : une note pincée toutes ~0.9 s, motif lent qui dérive (hypnotique)
       arpStep=0;
       arpTimer=setInterval(()=>{ if(!ambOn||!ctx) return;
