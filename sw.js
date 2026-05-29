@@ -1,5 +1,5 @@
 /* ÆON service worker — offline-capable, update-friendly */
-const CACHE = "aeon-v52";
+const CACHE = "aeon-v53";
 const ASSETS = [
   "./",
   "./index.html",

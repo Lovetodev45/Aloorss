@@ -2180,10 +2180,15 @@ function toast(html, ms=4200){
 function doSpark(e){
   bumpCombo();
   const wh=el("worldHint"); if(wh && (G.clicks||0)>2){ wh.style.transition="opacity .8s"; wh.style.opacity="0"; }
-  // CRIT aléatoire (~8%) : ×7 — variable reward, le sel de l'addiction
-  const isCrit=Math.random()<0.08;
-  let v=clickValue()*comboMult();
-  if(isCrit) v*=7;
+  // CRITS à paliers (variable reward — le sel de l'addiction)
+  //  Mega ×100 (~0.4%) · Hard ×25 (~2%) · Crit ×7 (~8%)
+  const roll=Math.random();
+  let crit=0;                      // 0 = normal, 1 = crit, 2 = hard, 3 = mega
+  if(roll<0.004) crit=3;
+  else if(roll<0.024) crit=2;
+  else if(roll<0.10)  crit=1;
+  const critMult=[1,7,25,100][crit];
+  let v=clickValue()*comboMult()*critMult;
   G.res.know+=v; G.totalKnow+=v;
   G.clicks=(G.clicks||0)+1;
   G.runClicks=(G.runClicks||0)+1;   // pour l'épreuve "L'Âge muet"
@@ -2192,19 +2197,26 @@ function doSpark(e){
   const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
   const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
   // une goutte d'encre vivante tombe sur le palimpseste à chaque éveil
-  if(window.Palim&&Palim.isActive()) Palim.inkDrop(null,null, isCrit?2.2:1);
+  if(window.Palim&&Palim.isActive()) Palim.inkDrop(null,null, crit?1.4+crit:1);
   const rp=document.createElement("span"); rp.className="ripple";
   rp.style.left=(cx-rect.left)+"px"; rp.style.top=(cy-rect.top)+"px";
   btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
   if(btn.animate) btn.animate(
     [{transform:"scale(.96)"},{transform:"scale(1.05)"},{transform:"scale(1)"}],
     {duration:170,easing:"ease-out"});
-  if(isCrit){
-    // CRIT ROUGE — gros, percutant, jouissif
-    popText(cx,cy,"✦ CRIT ! +"+fmt(v),"#ff4d4d",40+Math.min(combo,24));
-    FX.burst(cx,cy,{n:40,speed:7,size:5,colors:["#ff4d4d","#ff7a3c","#ffd24a","#fff7d6"]});
-    critFlash(cx,cy);            // anneau de choc rouge
-    shake(1.1); Sound.crit();
+  if(crit){
+    // paliers de crit : couleur, taille, intensité, son croissants
+    const CFG=[null,
+      {label:"✦ CRIT !",      col:"#ff7a3c", size:38, n:34, sp:6,  sh:.9,  ring:"#ff7a3c"},
+      {label:"✦✦ HARD CRIT !", col:"#ff4d4d", size:50, n:60, sp:8,  sh:1.4, ring:"#ff4d4d"},
+      {label:"★ MEGA CRIT ★",  col:"#ffd24a", size:66, n:110,sp:11, sh:2.2, ring:"#ffe07a"},
+    ][crit];
+    popText(cx,cy,CFG.label+" +"+fmt(v),CFG.col,CFG.size+Math.min(combo,20));
+    FX.burst(cx,cy,{n:CFG.n,speed:CFG.sp,size:4+crit,colors:[CFG.col,"#ff7a3c","#ffd24a","#fff7d6"]});
+    critFlash(cx,cy,CFG.ring,crit);
+    shake(CFG.sh); Sound.crit(crit);
+    if(crit>=2){ flash(); }                       // flash écran sur hard/mega
+    if(crit>=3){ FX.confetti(120); }              // confettis sur mega
   } else {
     const size=18+Math.min(combo,30)*0.55;
     popText(cx,cy,"+"+fmt(v),combo>=8?"#e3c884":"#9cc3ff",size);
@@ -2752,10 +2764,16 @@ const Sound=(()=>{
       tone(b,.08,"triangle",.15,b*1.5);
       if(step>0 && step%10===0) tone(b*1.5,.12,"sine",.12); }, // palier sonore tous les 10
     // CRIT : impact percutant (souffle grave + montée aiguë + cloche) — ultra satisfaisant
-    crit(){ noise(.18,.32,420,.8); tone(180,.1,"square",.22,90);
+    crit(tier){ tier=tier||1;
+      // impact croissant selon le palier
+      noise(.18+tier*0.04,.30+tier*.05,420-tier*60,.8);
+      tone(180,.1,"square",.22,90);
       setTimeout(()=>tone(660,.07,"square",.2,1320),35);
       setTimeout(()=>tone(1568,.22,"sine",.22,2400),70);
-      setTimeout(()=>tone(2093,.3,"sine",.16),120); },
+      setTimeout(()=>tone(2093,.3,"sine",.16),120);
+      if(tier>=2){ setTimeout(()=>seq([1318,1760,2093],"sine",.2,55),140); }   // hard : carillon
+      if(tier>=3){ setTimeout(()=>seq([1046,1568,2093,2637,3136],"sine",.22,60),200); } // mega : fanfare
+    },
     golden(){ seq([784,988,1318,1568,2093,2637],"sine",.22,52); },  // carillon doré (frénésie)
     buy(){ tone(300,.07,"square",.13,520); setTimeout(()=>tone(620,.1,"triangle",.13,820),50);
       noise(.05,.08,1800,2); },                                    // achat : "clac" satisfaisant
@@ -2824,10 +2842,13 @@ function popText(x,y,text,color,size){
   document.body.appendChild(d); setTimeout(()=>d.remove(),1100);
 }
 // anneau de choc rouge pour les crits
-function critFlash(x,y){
+function critFlash(x,y,color,tier){
   const r=document.createElement("div"); r.className="critring";
   r.style.left=x+"px"; r.style.top=y+"px";
-  document.body.appendChild(r); setTimeout(()=>r.remove(),650);
+  if(color){ r.style.borderColor=color; r.style.boxShadow="0 0 24px 4px "+color; }
+  if(tier>=2) r.style.borderWidth="4px";
+  if(tier>=3) r.style.width=r.style.height="46px";   // anneau plus large pour le mega
+  document.body.appendChild(r); setTimeout(()=>r.remove(),700);
 }
 
 // ---------- Compteurs animés (lerp 60 fps) ----------
@@ -3043,17 +3064,19 @@ function showShareFallback(canvas, text, url){
       ${links.map(l=>`<a class="share-link" href="${l.u}" target="_blank" rel="noopener">${l.n}</a>`).join("")}
     </div>
     <div class="choices" style="margin-top:10px">
-      <button class="choice" id="copyShare"><b>🔗 Copier le lien + texte</b></button>
+      <button class="choice" id="copyLink"><b>🔗 Copier le lien</b></button>
+      <button class="choice" id="copyShare"><b>📋 Copier le lien + texte</b></button>
       <button class="choice" id="dlShare"><b>⬇ Télécharger l'image</b></button>
       <button class="choice" id="closeShare">Fermer</button>
     </div></div>`;
   el("overlay").classList.add("show");
-  el("copyShare").onclick=()=>{
-    const payload=text+" "+url;
+  const copy=(payload,msg)=>{
     if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(payload).then(()=>toast("🔗 Lien copié !"),()=>fallbackCopy(payload));
+      navigator.clipboard.writeText(payload).then(()=>toast(msg),()=>fallbackCopy(payload));
     } else fallbackCopy(payload);
   };
+  el("copyLink").onclick=()=>copy(url,"🔗 Lien copié !");
+  el("copyShare").onclick=()=>copy(text+" "+url,"📋 Lien + texte copiés !");
   el("dlShare").onclick=()=>{ const a=document.createElement("a"); a.href=dataUrl; a.download="ma-civilisation-aeon.png"; a.click(); };
   el("closeShare").onclick=closeModal;
 }
