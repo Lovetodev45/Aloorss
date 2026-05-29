@@ -2290,34 +2290,41 @@ function sanitizeResources(){
 // ---------- Sauvegarde ----------
 let _wiping=false;  // bloque toute sauvegarde pendant un reset (sinon reload réécrit l'ancienne partie)
 function save(){ if(_wiping) return;
-  try{ sanitizeResources();   // garantit qu'aucune valeur infinie/NaN n'est écrite (sinon JSON → null → perte)
-    localStorage.setItem(SAVE_KEY, JSON.stringify(G));
-  }catch(e){} }
+  try{
+    sanitizeResources();   // pas d'infini/NaN (sinon JSON → null → perte)
+    // on retire les champs transitoires non sérialisables/inutiles avant l'écriture
+    const {_raf, ...clean}=G;
+    const json=JSON.stringify(clean);
+    if(json && json.length>2) localStorage.setItem(SAVE_KEY, json);
+  }catch(e){ console.error("ÆON save ÉCHEC:", e); } }
 // Efface tout puis recharge — sans qu'aucune sauvegarde ne réécrive par-dessus.
 function hardWipe(){ _wiping=true; try{ localStorage.removeItem(SAVE_KEY); }catch(e){} location.reload(); }
 function load(){
+  let raw;
+  try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){ console.error("ÆON: localStorage inaccessible",e); return false; }
+  if(!raw) return false;
+  // ÉTAPE 1 — appliquer l'état sauvegardé (priorité absolue : ne jamais perdre ça)
   try{
-    const raw=localStorage.getItem(SAVE_KEY);
-    if(!raw) return false;
     const d=JSON.parse(raw);
     G=Object.assign(newGame(), d);
     G.res=Object.assign({know:0,energy:0,culture:0,pop:0}, d.res||{});
     G.buildings=d.buildings||{}; G.techs=d.techs||{};
-    // migration : purge d'anciennes missions invalides (fonctions perdues au JSON)
     if(G.missions && !G.missions.every(m=>m&&m.tid&&m.reward)) G.missions=null;
-    sanitizeResources(); // répare une sauvegarde corrompue (valeurs négatives héritées)
-    // Temps écoulé depuis la dernière sauvegarde — TOUJOURS crédité (même 1 s),
-    // pour qu'un simple rechargement ne fasse jamais "perdre" de ressources.
+    sanitizeResources();
+  }catch(e){ console.error("ÆON: sauvegarde illisible",e); return false; }
+  // ÉTAPE 2 — gain hors-ligne (isolé : si ça échoue, on garde quand même l'état chargé)
+  try{
     const offMult=decreeOfflineMult();
-    const cap=8*3600*offMult;
-    const away=Math.min(Math.max(0,(Date.now()-(d.lastTick||Date.now()))/1000), cap);
+    const away=Math.min(Math.max(0,(Date.now()-(G.lastTick||Date.now()))/1000), 8*3600*offMult);
     if(away>0){
-      G.res.know+=rateOf("know")*away; G.totalKnow+=rateOf("know")*away;
+      const rk=rateOf("know");
+      G.res.know+=rk*away; G.totalKnow+=rk*away;
       G.res.energy+=rateOf("energy")*away; G.res.culture+=rateOf("culture")*away; G.res.pop+=rateOf("pop")*away;
-      if(away>30) setTimeout(()=>toast(`⏳ Pendant votre absence, l'humanité a gagné <b>${fmt(rateOf("know")*away)}</b> connaissance.`),600);
+      sanitizeResources();
+      if(away>30) setTimeout(()=>toast(`⏳ Pendant votre absence, l'humanité a gagné <b>${fmt(rk*away)}</b> connaissance.`),600);
     }
-    return true;
-  }catch(e){ return false; }
+  }catch(e){ console.error("ÆON: gain hors-ligne ignoré",e); }
+  return true;
 }
 function exportSave(){
   G.lastTick=Date.now();
