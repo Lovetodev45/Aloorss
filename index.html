@@ -861,8 +861,23 @@ function loop(now){
   }
 
   updateNumbers();
+  feedOrganism();
   if(now-lastRender>120){ render(); lastRender=now; }
   requestAnimationFrame(loop);
+}
+
+// Traduit les 4 ressources en niveaux visuels 0..1 pour l'organisme.
+// Échelle logarithmique : reste lisible des premières dizaines aux quintillions.
+function vitalLevel(v, knee){ return v<=0?0 : Math.min(1, Math.log10(1+v)/knee); }
+function feedOrganism(){
+  if(!World.isActive()) return;
+  const build=Math.min(1, Object.values(G.buildings).reduce((a,b)=>a+b,0)/24);
+  World.setVitals({
+    know:    Math.max(vitalLevel(G.totalKnow, 7), build*0.5),  // connaissance + densité bâtie
+    energy:  vitalLevel(G.res.energy, 8),
+    culture: vitalLevel(G.res.culture, 7),
+    pop:     vitalLevel(G.res.pop, 7),
+  });
 }
 
 // ---------- Rendu ----------
