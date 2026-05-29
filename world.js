@@ -55,7 +55,7 @@ let renderer, scene, camera, raf, raycaster, pointerNDC;
 let planet, planetMat, atmosphere, cloudLayer, starfield, sunLight, coreGlow;
 let slotsGroup, orbitGroup;     // groupes pour bâtiments au sol / en orbite
 let ageF=0, ageTarget=0, pulse=0, ok=false;
-let camTheta=0.6, camPhi=1.15, camDist=14, camDistTarget=14;
+let camTheta=0.6, camPhi=1.15, camDist=20, camDistTarget=20;
 let dragging=false, lastX=0, lastY=0, autoRotate=true, idleT=0;
 let pinchStart=0, pinchDistStart=0;
 let buildingNodes={};           // id -> {meshes:[], count, slots:[...]}
@@ -302,7 +302,8 @@ function lerp(a,b,t){return a+(b-a)*t;}
 // ============================================================
 function makeBuildingMesh(id){
   const def=BUILDING_MESH[id]||{h:0.3,color:0xcccccc,emissive:0,shape:"box"};
-  const h=def.h*PLANET_R*0.6;
+  // échelle : un bâtiment fait au max ~6 % du rayon de la planète (def.h∈[0.08..0.7])
+  const h=def.h*PLANET_R*0.10;
   const mat=new THREE.MeshStandardMaterial({
     color:def.color, roughness:0.6, metalness:0.25,
     emissive:new THREE.Color(def.emissive||0x000000),
@@ -344,7 +345,7 @@ function placeOnSurface(mesh, slotIdx){
 
 // ---- Synchronisation depuis l'état du jeu ----
 // counts: {id: count}. On instancie jusqu'à un plafond visuel par type.
-const VISUAL_CAP=40;
+const VISUAL_CAP=12;
 function syncBuildings(counts){
   if(!ok) return;
   let slotCursor=0;
@@ -413,14 +414,14 @@ function bindInput(canvas){
   });
   canvas.addEventListener("wheel", e=>{
     e.preventDefault();
-    camDistTarget=Math.max(7.5, Math.min(40, camDistTarget + e.deltaY*0.012));
+    camDistTarget=Math.max(12, Math.min(48, camDistTarget + e.deltaY*0.012));
   }, {passive:false});
   // pinch zoom
   canvas.addEventListener("touchstart", e=>{ if(e.touches.length===2){
     pinchDistStart=touchDist(e); pinchStart=camDistTarget; } });
   canvas.addEventListener("touchmove", e=>{ if(e.touches.length===2){
     e.preventDefault(); const d=touchDist(e);
-    camDistTarget=Math.max(7.5,Math.min(40, pinchStart*(pinchDistStart/Math.max(1,d)))); } }, {passive:false});
+    camDistTarget=Math.max(12,Math.min(48, pinchStart*(pinchDistStart/Math.max(1,d)))); } }, {passive:false});
 }
 function touchDist(e){ const a=e.touches[0],b=e.touches[1];
   return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
@@ -496,7 +497,7 @@ function applyAgeVisual(){
 function cinematicAge(){
   // zoom rapproché puis recul, et petit tour
   const startDist=camDist;
-  camAnim={t:0, dur:2200, fromDist:startDist, toClose:8.2, fromTheta:camTheta};
+  camAnim={t:0, dur:2200, fromDist:startDist, toClose:13, fromTheta:camTheta};
 }
 function tickCamAnim(dt){
   if(!camAnim) return false;
