@@ -1063,8 +1063,9 @@ function applyMeta(g, meta){ Object.assign(g, meta); return g; }
 
 // ---------- Helpers ----------
 function fmt(n){
-  if(n===Infinity) return "∞";
+  if(n===Infinity || n>1e303) return "∞";
   if(n<1000) return (n%1===0? n.toString() : n.toFixed(1));
+  if(n>=1e33) return n.toExponential(2).replace("e+","e");  // au-delà des unités nommées → scientifique
   const units=["K","M","Md","Bn","Bd","T","Qa","Qi","Sx","Sp"];
   let u=-1; let x=n;
   while(x>=1000 && u<units.length-1){x/=1000;u++;}
@@ -2218,16 +2219,25 @@ const Golden=(()=>{
 document.getElementById("goldenSpark").addEventListener("click",()=>Golden.grab());
 
 // ---------- Garde-fou ressources ----------
+const MAX_RES=1e300;   // plafond sûr (en deçà de la limite JS ~1.8e308) — évite l'infini destructeur
+function clampRes(v){
+  if(v==null || Number.isNaN(v)) return 0;     // null (Infinity sérialisé) ou NaN irrécupérable → 0
+  if(v===Infinity || v>MAX_RES) return MAX_RES; // gros gains : on PLAFONNE, on ne détruit pas
+  if(v<0) return 0;
+  return v;
+}
 function sanitizeResources(){
-  for(const k in G.res){
-    if(!Number.isFinite(G.res[k]) || G.res[k]<0) G.res[k]=0;
-  }
-  if(!Number.isFinite(G.totalKnow) || G.totalKnow<0) G.totalKnow=Math.max(0, G.res.know||0);
+  for(const k in G.res) G.res[k]=clampRes(G.res[k]);
+  G.totalKnow=clampRes(G.totalKnow);
+  if(G.totalKnow<G.res.know) G.totalKnow=G.res.know;  // cohérence
 }
 
 // ---------- Sauvegarde ----------
 let _wiping=false;  // bloque toute sauvegarde pendant un reset (sinon reload réécrit l'ancienne partie)
-function save(){ if(_wiping) return; try{ localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }catch(e){} }
+function save(){ if(_wiping) return;
+  try{ sanitizeResources();   // garantit qu'aucune valeur infinie/NaN n'est écrite (sinon JSON → null → perte)
+    localStorage.setItem(SAVE_KEY, JSON.stringify(G));
+  }catch(e){} }
 // Efface tout puis recharge — sans qu'aucune sauvegarde ne réécrive par-dessus.
 function hardWipe(){ _wiping=true; try{ localStorage.removeItem(SAVE_KEY); }catch(e){} location.reload(); }
 function load(){
