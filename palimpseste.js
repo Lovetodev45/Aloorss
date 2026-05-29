@@ -51,11 +51,12 @@ function resize(){
 function buildParchment(){
   parchment=document.createElement("canvas"); parchment.width=W; parchment.height=H;
   const p=parchment.getContext("2d");
+  // parchemin clair et chaud (c'est désormais le sujet de l'onglet, pas un fond)
   const g=p.createRadialGradient(W*0.5,H*0.4,Math.min(W,H)*0.05, W*0.5,H*0.55,Math.max(W,H)*0.85);
-  g.addColorStop(0,"#332a1a"); g.addColorStop(0.5,"#241d12"); g.addColorStop(1,"#0c0a10");
+  g.addColorStop(0,"#6b5a3a"); g.addColorStop(0.5,"#4a3d26"); g.addColorStop(1,"#2a2114");
   p.fillStyle=g; p.fillRect(0,0,W,H);
-  const n=Math.floor(W*H/1600);
-  for(let i=0;i<n;i++){ p.fillStyle=`rgba(225,205,155,${Math.random()*0.06})`; p.fillRect(Math.random()*W,Math.random()*H,1,1); }
+  const n=Math.floor(W*H/1400);
+  for(let i=0;i<n;i++){ p.fillStyle=`rgba(235,215,165,${Math.random()*0.08})`; p.fillRect(Math.random()*W,Math.random()*H,1,1); }
   p.strokeStyle="rgba(190,165,115,0.06)"; p.lineWidth=1;
   for(let i=0;i<30;i++){ p.beginPath(); let x=Math.random()*W,y=Math.random()*H; p.moveTo(x,y);
     for(let k=0;k<5;k++){ x+=rnd(-70,70); y+=rnd(-46,46); p.lineTo(x,y); } p.stroke(); }
@@ -143,11 +144,16 @@ function drawFresco(){
       points.push({x,y,res,sd}); idx++;
     }
   }
-  // nervures (sous les vignettes)
-  fctx.strokeStyle="rgba(224,162,74,0.10)"; fctx.lineWidth=1;
+  // nervures (sous les vignettes) — plus visibles
+  fctx.strokeStyle="rgba(240,200,120,0.22)"; fctx.lineWidth=1.2;
   for(const pt of points){ fctx.beginPath(); fctx.moveTo(cx,cy); fctx.lineTo(pt.x,pt.y); fctx.stroke(); }
-  // vignettes
-  for(const pt of points){ vignetteShape(fctx, pt.x, pt.y, 9, pt.res, seed("v"+pt.x.toFixed(0)+pt.y.toFixed(0))); }
+  // soleil central (cœur de la civilisation)
+  const sg=fctx.createRadialGradient(cx,cy,0,cx,cy,26);
+  sg.addColorStop(0,"rgba(255,240,190,0.9)"); sg.addColorStop(1,"rgba(201,164,74,0)");
+  fctx.fillStyle=sg; fctx.beginPath(); fctx.arc(cx,cy,26,0,7); fctx.fill();
+  // vignettes (plus grandes)
+  const vr=Math.max(12, Math.min(W,H)*0.022);
+  for(const pt of points){ vignetteShape(fctx, pt.x, pt.y, vr, pt.res, seed("v"+pt.x.toFixed(0)+pt.y.toFixed(0))); }
   // lignes de texte (découvertes) calligraphiées en marge gauche
   const tn=_state.techs||0;
   fctx.strokeStyle="rgba(205,180,140,0.5)"; fctx.lineWidth=1.5;

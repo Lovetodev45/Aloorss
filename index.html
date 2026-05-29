@@ -46,8 +46,8 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:
 /* Fond cosmique STATIQUE (léger, zéro CPU) : dégradé + champ d'étoiles peint une fois */
 #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
 /* Le Palimpseste — fresque 2D dans l'onglet Civilisation (pas en fond) */
-#palim{display:block;width:100%;height:clamp(360px,62vh,720px);border-radius:14px;
-  border:1px solid var(--hair);background:#0c0a10}
+#palim{display:block;width:100%;height:clamp(320px,52vh,540px);border-radius:14px;
+  border:1px solid var(--hair);background:#2a2114}
 #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
   background:
     radial-gradient(ellipse 90% 70% at 50% 30%,rgba(40,46,90,.10),transparent 60%),
@@ -1722,6 +1722,7 @@ const _INK_BY_AGE=[
 ];
 function syncPalimpseste(){
   if(!(window.Palim&&Palim.isActive())) return;
+  if(!_frescoVisible()) return;   // ne travaille que si l'onglet Civilisation est ouvert
   Palim.sync({
     buildings:G.buildings,
     techs:Object.keys(G.techs).length,
@@ -2206,6 +2207,9 @@ function toast(html, ms=4200){
 }
 
 // ---------- Clic ----------
+let _lastFxAt=0;
+// la fresque n'est mise à jour QUE si l'onglet Civilisation est ouvert (sinon inutile → perf)
+function _frescoVisible(){ const p=el("panel-fresco"); return p && p.classList.contains("active"); }
 function doSpark(e){
   bumpCombo();
   const wh=el("worldHint"); if(wh && (G.clicks||0)>2){ wh.style.transition="opacity .8s"; wh.style.opacity="0"; }
@@ -2231,36 +2235,44 @@ function doSpark(e){
   const btn=el("sparkBtn"), rect=btn.getBoundingClientRect();
   const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
   const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
-  // une goutte d'encre vivante tombe sur le palimpseste à chaque éveil
-  if(window.Palim&&Palim.isActive()) Palim.inkDrop(null,null, crit?1.4+crit:1);
-  const rp=document.createElement("span"); rp.className="ripple";
-  rp.style.left=(cx-rect.left)+"px"; rp.style.top=(cy-rect.top)+"px";
-  btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
-  if(btn.animate) btn.animate(
-    [{transform:"scale(.96)"},{transform:"scale(1.05)"},{transform:"scale(1)"}],
-    {duration:170,easing:"ease-out"});
+  // THROTTLE des effets visuels : le gameplay (connaissance) est INCHANGÉ à chaque éveil,
+  // mais on limite les effets lourds quand on spamme → fluidité sans perte de qualité.
+  const tnow=performance.now();
+  const sinceFx=tnow-(_lastFxAt||0);
+  const fxOk = sinceFx>=85;          // au plus ~11 effets/s pour les éveils normaux
   if(crit){
-    // paliers de crit : couleur, taille, intensité, son croissants
+    // les crits sont toujours montrés en entier (c'est la récompense)
+    _lastFxAt=tnow;
     const CFG=[null,
-      {label:"✦ CRIT !",      col:"#ff7a3c", size:38, n:34, sp:6,  sh:.9,  ring:"#ff7a3c"},
-      {label:"✦✦ HARD CRIT !", col:"#ff4d4d", size:50, n:60, sp:8,  sh:1.4, ring:"#ff4d4d"},
-      {label:"★ MEGA CRIT ★",  col:"#ffd24a", size:66, n:110,sp:11, sh:2.2, ring:"#ffe07a"},
+      {label:"✦ CRIT !",      col:"#ff7a3c", size:38, n:24, sp:6,  sh:.9,  ring:"#ff7a3c"},
+      {label:"✦✦ HARD CRIT !", col:"#ff4d4d", size:50, n:38, sp:8,  sh:1.3, ring:"#ff4d4d"},
+      {label:"★ MEGA CRIT ★",  col:"#ffd24a", size:66, n:70, sp:11, sh:2.0, ring:"#ffe07a"},
     ][crit];
-    popText(cx,cy,CFG.label+" +"+fmt(v),CFG.col,CFG.size+Math.min(combo,20));
+    popText(cx,cy,CFG.label+" +"+fmt(v),CFG.col,CFG.size+Math.min(combo,16));
     FX.burst(cx,cy,{n:CFG.n,speed:CFG.sp,size:4+crit,colors:[CFG.col,"#ff7a3c","#ffd24a","#fff7d6"]});
     critFlash(cx,cy,CFG.ring,crit);
     shake(CFG.sh); Sound.crit(crit);
-    if(crit>=2){ flash(); }                       // flash écran sur hard/mega
-    if(crit>=3){ FX.confetti(120); }              // confettis sur mega
-  } else {
-    const size=18+Math.min(combo,30)*0.55;
+    if(crit>=2) flash();
+    if(crit>=3) FX.confetti(90);
+    if(window.Palim&&Palim.isActive()&&_frescoVisible()) Palim.inkDrop(null,null,1.4+crit);
+  } else if(fxOk){
+    // éveil normal : effet léger, throttlé
+    _lastFxAt=tnow;
+    const size=18+Math.min(combo,30)*0.5;
     popText(cx,cy,"+"+fmt(v),combo>=8?"#e3c884":"#9cc3ff",size);
-    FX.burst(cx,cy,{n:combo>=15?12:7,colors:["#9cc3ff","#9cc3ff","#f4e6c0"],speed:3,size:2.6,up:1.4});
-    Sound.click(combo);
+    FX.burst(cx,cy,{n:6,colors:["#9cc3ff","#f4e6c0"],speed:3,size:2.4,up:1.4});
+    if(window.Palim&&Palim.isActive()&&_frescoVisible()) Palim.inkDrop(null,null,1);
+  }
+  // son : toujours (léger, pas de coût DOM) mais le ladder reste satisfaisant
+  if(!crit) Sound.click(combo);
+  // onde sur le bouton : throttlée aussi
+  if(fxOk||crit){
+    const rp=document.createElement("span"); rp.className="ripple";
+    rp.style.left=(cx-rect.left)+"px"; rp.style.top=(cy-rect.top)+"px";
+    btn.appendChild(rp); setTimeout(()=>rp.remove(),600);
+    if(btn.animate) btn.animate([{transform:"scale(.97)"},{transform:"scale(1.04)"},{transform:"scale(1)"}],{duration:150,easing:"ease-out"});
   }
   World.ping(0.35+Math.min(combo,30)*0.02);
-  if(combo>0 && combo%25===0){ shake(.7);
-    FX.burst(cx,cy,{n:26,speed:5,size:4,colors:["#c9a44a","#9cc3ff","#f4e6c0"]}); }
 }
 function flashAdvance(){
   const b=el("ageIcon"); b.style.transition="transform .4s"; b.style.transform="scale(1.5) rotate(8deg)";
