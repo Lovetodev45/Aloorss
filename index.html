@@ -36,22 +36,14 @@ body{
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border-glow)}
 
-/* 2D starfield fallback (sous le rendu 3D) */
-#stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35}
-/* Monde 3D — plein écran, derrière l'UI.
-   touch-action:pan-y → les swipes VERTICAUX scrollent la page nativement (mobile),
-   le canvas ne capte que l'horizontal (rotation) + les taps (éveil). */
-#world{position:fixed;inset:0;z-index:1;display:block;touch-action:pan-y}
-/* Vignette douce pour la lisibilité de l'UI par-dessus le monde */
-#vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
-  background:radial-gradient(ellipse 120% 90% at 50% 42%,transparent 38%,rgba(4,4,12,.55) 100%)}
+/* Fond cosmique STATIQUE (léger, zéro CPU) : dégradé + champ d'étoiles peint une fois */
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.6}
+#vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 30%,rgba(40,46,90,.18),transparent 60%),
+    radial-gradient(ellipse 120% 100% at 50% 50%,transparent 45%,rgba(3,4,10,.7) 100%)}
 
-.wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 16px 80px;pointer-events:none}
-/* les éléments interactifs réactivent les clics ; les zones vides laissent passer vers le monde 3D */
-.wrap button,.wrap a,.wrap input,.wrap .card,.wrap .tab,.wrap .res,.wrap .stat-box,
-.wrap .age-banner,.wrap .panel,.wrap .transcend-box,.wrap .modal,.wrap header{pointer-events:auto}
-.spark-zone{pointer-events:none}
-.spark-zone .spark-btn,.spark-zone .action-btn{pointer-events:auto}
+.wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 16px 80px}
 
 /* ===== Header ===== */
 header{text-align:center;padding:34px 0 18px}
@@ -113,12 +105,10 @@ header{text-align:center;padding:34px 0 18px}
 
 /* ===== Main click ===== */
 /* Zone autour de la planète 3D : haute pour laisser respirer le monde */
-.spark-zone{text-align:center;margin:6px 0 22px;min-height:300px;display:flex;
-  flex-direction:column;align-items:center;justify-content:flex-end;position:relative}
-.spark-hint{position:absolute;top:0;left:50%;transform:translateX(-50%);
-  font-family:'Cinzel',serif;font-size:13px;letter-spacing:.18em;color:var(--muted);
-  text-transform:uppercase;pointer-events:none;text-shadow:0 0 12px rgba(0,0,0,.8);
-  animation:hintPulse 3s ease-in-out infinite}
+.spark-zone{text-align:center;margin:18px 0 22px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;position:relative;gap:10px}
+.spark-hint{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.18em;color:var(--dim);
+  text-transform:uppercase;pointer-events:none;animation:hintPulse 3s ease-in-out infinite}
 @keyframes hintPulse{0%,100%{opacity:.5}50%{opacity:.95}}
 .spark-btn{
   position:relative;width:min(260px,68vw);padding:13px 0;border:none;cursor:pointer;border-radius:13px;
@@ -397,7 +387,6 @@ body{transition:background 1.6s ease}
 </head>
 <body>
 <canvas id="stars"></canvas>
-<canvas id="world"></canvas>
 <div id="vignette"></div>
 <canvas id="fx"></canvas>
 <canvas id="confetti"></canvas>
@@ -426,7 +415,7 @@ body{transition:background 1.6s ease}
 
   <!-- Main click : interaction avec la planète 3D -->
   <div class="spark-zone">
-    <div class="spark-hint" id="worldHint">Touchez le monde pour l'éveiller</div>
+    <div class="spark-hint" id="worldHint">Éveillez l'esprit pour gagner de la connaissance</div>
     <button class="spark-btn" id="sparkBtn">
       Éveiller l'esprit
       <small id="sparkSub">+1 connaissance par éveil</small>
@@ -591,8 +580,6 @@ body{transition:background 1.6s ease}
 <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
 
 <!-- Moteur 3D : Three.js (local, hors-ligne) puis le monde ÆON -->
-<script src="vendor/three.min.js"></script>
-<script src="world.js"></script>
 
 <script>
 "use strict";
@@ -1881,8 +1868,8 @@ function checkDailyBonus(){
   G.lastDaily=today;
 }
 
-/* WORLD — le moteur 3D vit maintenant dans world.js (Three.js, chargé avant ce script).
-   window.World est fourni par ce fichier externe. */
+/* WORLD — le rendu 3D a été retiré (coûteux, sans valeur de jeu). Un stub no-op
+   (plus bas) garde tous les appels World.* inoffensifs. Fond cosmique statique. */
 
 // ---------- Bouton son ----------
 el("muteBtn").onclick=()=>{ Sound.init(); const on=Sound.toggle(); G.muted=!on;
@@ -1968,10 +1955,11 @@ const Admin=(()=>{
   return {init,open,close,toggle};
 })();
 
-// ---------- Garde-fou : si world.js/Three.js n'ont pas chargé ----------
+// ---------- Stub World : le rendu 3D a été retiré, tous les appels deviennent no-op ----------
 if(typeof window.World==="undefined"){
   window.World={ init:()=>false, isActive:()=>false, setAge(){}, ping(){},
-    syncBuildings(){}, onPick(){}, onWorldClick(){}, focusBuilding(){}, resize(){} };
+    syncBuildings(){}, setVitals(){}, onPick(){}, onWorldClick(){}, focusBuilding(){},
+    transcendBurst(){}, resize(){} };
 }
 
 // ---------- Démarrage ----------
