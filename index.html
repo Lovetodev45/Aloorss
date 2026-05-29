@@ -3108,7 +3108,8 @@ function showFriendCiv(d){
   m.innerHTML=`<div class="ev-tag dilemma">👥 Civilisation partagée</div>
     <div class="ev-ic">${age.icon}</div>
     <h3>${d.nm? d.nm : "La civilisation d'un ami"}</h3>
-    <p style="margin-bottom:14px">Elle a atteint l'<b>${age.name}</b>.</p>
+    <p style="margin-bottom:4px">Instantané — elle a atteint l'<b>${age.name}</b>.</p>
+    <p style="margin-bottom:14px;font-size:11px;color:var(--dim)">Photo figée au moment du partage.</p>
     <div class="stat-box" style="text-align:left;margin-bottom:14px">
       <div class="stat-row"><span>🧠 Connaissance totale</span><b>${fmt(d.k||0)}</b></div>
       <div class="stat-row"><span>⚡ Énergie</span><b>${fmt(d.e||0)}</b></div>
