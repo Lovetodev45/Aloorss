@@ -1550,7 +1550,7 @@ function renderStats(){
     <div class="stat-row"><span>⚡ Énergie <i style="color:var(--dim);font-style:normal">dope la connaissance</i></span><b>+${((energyMult()-1)*100).toFixed(0)} %</b></div>
     <div class="stat-row"><span>✨ Culture <i style="color:var(--dim);font-style:normal">dope la connaissance</i></span><b>+${((cultureMult()-1)*100).toFixed(0)} %</b></div>
     <div class="stat-row"><span>Bâtiments construits</span><b>${owned}</b></div>
-    <div class="stat-row"><span>Découvertes</span><b>${techCount} / ${TECHS.length}</b></div>
+    <div class="stat-row"><span>Découvertes <i style="color:var(--dim);font-style:normal">(voies exclusives)</i></span><b>${techCount} / ${MAX_TECHS}</b></div>
     <div class="stat-row"><span>Étincelles d'Éon</span><b style="color:var(--gold)">${G.sparks} (+${((sparkMult()-1)*100).toFixed(0)} %)</b></div>
     ${(G.singularities||0)>0||(G.awakenings||0)>0?`<div class="stat-row"><span>Singularités ✸</span><b style="color:var(--accent-light)">${G.singularities||0} · ${G.awakenings||0} éveil(s)</b></div>`:""}
     ${G.sparks>=25&&!G.endingSeen?`<div class="stat-row"><span style="color:var(--dim)">Un autre choix existe…</span><b style="color:var(--dim)">Transcendez pour le découvrir.</b></div>`:""}
@@ -1705,6 +1705,13 @@ function doctrineLocked(t){
   if(!t.group) return false;
   return TECHS.some(x=>x.group===t.group && x.id!==t.id && G.techs[x.id]);
 }
+// Nombre MAXIMUM de découvertes obtenables en un cycle : les non-doctrines + 1 par groupe
+// (les voies étant exclusives, on ne peut pas toutes les avoir). Calculé une fois.
+const MAX_TECHS=(()=>{
+  const groups=new Set(); let solo=0;
+  for(const t of TECHS){ if(t.group) groups.add(t.group); else solo++; }
+  return solo+groups.size;
+})();
 function buyTech(id){
   const t=TECHS.find(x=>x.id===id); if(!t||G.techs[id]) return;
   if(doctrineLocked(t)){ Sound.blip(); return; }   // doctrine concurrente déjà choisie
@@ -1999,7 +2006,7 @@ const MISSION_DEFS={
   know:   {reward:["boost",2.5,20], make:()=>{ const n=Math.ceil(G.totalKnow*1.5+rateOf("know")*60+50); return {desc:`Atteindre ${fmt(n)} de connaissance totale`, target:n}; }},
   energy: {reward:["know",25],      make:()=>{ const n=Math.ceil(G.res.energy+rateOf("energy")*45+20); return {desc:`Accumuler ${fmt(n)} d'énergie`, target:n}; }},
   culture:{reward:["boost",2,15],   make:()=>{ const n=Math.ceil(G.res.culture+rateOf("culture")*45+15); return {desc:`Accumuler ${fmt(n)} de culture`, target:n}; }},
-  tech:   {reward:["know",60],      make:()=>{ const n=Object.keys(G.techs).length+1; return {desc:`Débloquer ${n} découverte(s) au total`, target:n}; }},
+  tech:   {reward:["know",60],      make:()=>{ const cur=Object.keys(G.techs).length; if(cur>=MAX_TECHS) return null; const n=cur+1; return {desc:`Débloquer ${n} découverte(s) au total`, target:n}; }},
 };
 const MISSION_IDS=Object.keys(MISSION_DEFS);
 let missionClicks=0;  // clics depuis le début (pour les missions "éveiller N fois")
@@ -2015,10 +2022,17 @@ function getMissionValue(tid){
   return 0;
 }
 function rollMission(){
-  const tid=MISSION_IDS[Math.floor(Math.random()*MISSION_IDS.length)];
-  const def=MISSION_DEFS[tid];
-  const m=def.make(); m.tid=tid; m.reward=def.reward;
-  if(tid==="click") m._startClicks=missionClicks;
+  // jusqu'à 8 tentatives pour éviter un modèle impossible (ex. tech déjà maxées → make() renvoie null)
+  for(let tries=0;tries<8;tries++){
+    const tid=MISSION_IDS[Math.floor(Math.random()*MISSION_IDS.length)];
+    const m=MISSION_DEFS[tid].make();
+    if(!m) continue;
+    m.tid=tid; m.reward=MISSION_DEFS[tid].reward;
+    if(tid==="click") m._startClicks=missionClicks;
+    return m;
+  }
+  // repli sûr : toujours faisable
+  const m=MISSION_DEFS.click.make(); m.tid="click"; m.reward=MISSION_DEFS.click.reward; m._startClicks=missionClicks;
   return m;
 }
 function initMissions(){
@@ -2879,7 +2893,7 @@ const ACHIEVEMENTS=[
   {id:"b50",     icon:"🏗️", name:"Bâtisseur",              desc:"Construire 50 bâtiments au total.",         goal:()=>totalBuildings()>=50, prog:()=>totalBuildings()/50},
   {id:"b250",    icon:"🏙️", name:"Architecte de mondes",   desc:"Construire 250 bâtiments au total.",        goal:()=>totalBuildings()>=250, prog:()=>totalBuildings()/250},
   {id:"tech10",  icon:"🔬", name:"Savant",                 desc:"Débloquer 10 découvertes.",                 goal:()=>Object.keys(G.techs).length>=10, prog:()=>Object.keys(G.techs).length/10},
-  {id:"techall", icon:"🌌", name:"Omniscient",             desc:"Débloquer toutes les découvertes.",         goal:()=>Object.keys(G.techs).length>=TECHS.length, prog:()=>Object.keys(G.techs).length/TECHS.length},
+  {id:"techall", icon:"🌌", name:"Omniscient",             desc:"Débloquer toutes les découvertes possibles d'un cycle (1 voie par doctrine).", goal:()=>Object.keys(G.techs).length>=MAX_TECHS, prog:()=>Object.keys(G.techs).length/MAX_TECHS},
   {id:"ai",      icon:"🤖", name:"Singularité proche",     desc:"Atteindre l'Ère de l'IA.",                  goal:()=>G.age>=6, prog:()=>G.age/6},
   {id:"space",   icon:"🚀", name:"Espèce interstellaire",  desc:"Atteindre l'Ère Spatiale.",                 goal:()=>G.age>=7, prog:()=>G.age/7},
   {id:"transc",  icon:"✦",  name:"Au-delà de la chair",    desc:"Atteindre la Transcendance.",               goal:()=>G.age>=8, prog:()=>G.age/8},
