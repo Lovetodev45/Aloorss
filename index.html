@@ -267,10 +267,15 @@ header{text-align:center;padding:20px 0 10px}
   border-bottom:1px solid var(--hair);padding-bottom:8px}
 
 /* ===== Toast / events ===== */
-#toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:10px;align-items:center;width:min(440px,92vw)}
-.toast{width:100%;background:var(--surface);border:1px solid var(--border-glow);border-radius:12px;padding:12px 16px;box-shadow:0 10px 40px rgba(0,0,0,.5);animation:slideUp .3s ease;font-size:14px}
-.toast b{color:var(--gold)}
-@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+/* Notifications : en HAUT À GAUCHE, compactes, ne gênent pas le jeu */
+#toasts{position:fixed;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));
+  z-index:200;display:flex;flex-direction:column;gap:8px;align-items:flex-start;
+  width:min(300px,72vw);pointer-events:none}
+.toast{width:100%;background:rgba(10,13,24,.82);border:1px solid var(--hair);border-radius:10px;
+  padding:9px 12px;box-shadow:0 6px 22px rgba(0,0,0,.45);backdrop-filter:blur(8px);
+  animation:slideIn .3s ease;font-size:12.5px;line-height:1.4;pointer-events:auto}
+.toast b{color:var(--gold-soft)}
+@keyframes slideIn{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
 
 /* ===== Event modal ===== */
 #overlay{position:fixed;inset:0;z-index:300;background:rgba(5,5,15,.78);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
@@ -519,7 +524,7 @@ body{transition:background 1.6s ease}
   #overlay{padding:14px}
   .modal{padding:20px;border-radius:14px;max-height:88vh;overflow-y:auto}
   .modal h3{font-size:19px}
-  #toasts{bottom:max(14px,env(safe-area-inset-bottom));width:min(440px,94vw)}
+  #toasts{width:min(78vw,300px)}
   .narr-box{padding:0 4px}
   /* admin : panneau adapté, bouton au-dessus de la safe-area */
   #adminToggle{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}
@@ -2238,7 +2243,7 @@ function toast(html, ms=4200){
   const t=document.createElement("div");
   t.className="toast"; t.innerHTML=html;
   el("toasts").appendChild(t);
-  setTimeout(()=>{ t.style.transition="opacity .4s,transform .4s"; t.style.opacity="0"; t.style.transform="translateY(10px)";
+  setTimeout(()=>{ t.style.transition="opacity .4s,transform .4s"; t.style.opacity="0"; t.style.transform="translateX(-16px)";
     setTimeout(()=>t.remove(),400); }, ms);
 }
 
