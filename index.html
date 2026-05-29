@@ -914,6 +914,8 @@ function carryMeta(g){
     awakenSeen:g.awakenSeen,
     // dimension génie : épreuves accomplies + secret découvert (permanents)
     challengesDone:g.challengesDone||{}, secretFound:g.secretFound, bestTimes:g.bestTimes||{},
+    // Héritages gravés (traits permanents) + mémoire morale (le Dilemme du Créateur)
+    legacies:g.legacies||{}, soulsSpent:g.soulsSpent||0, dilemmaSeen:g.dilemmaSeen||0,
   };
 }
 function applyMeta(g, meta){ Object.assign(g, meta); return g; }
@@ -929,6 +931,49 @@ function fmt(n){
 }
 function getCount(id){return G.buildings[id]||0;}
 function buildingCost(b){return Math.ceil(b.base * Math.pow(1.15, getCount(b.id)));}
+
+// ============================================================
+//   HÉRITAGES — le cœur du jeu (optimisation + histoire + sens)
+//   À chaque transcendance on grave UN trait dans l'humanité. Les traits
+//   s'accumulent (niveaux), créent des SYNERGIES à optimiser, et réécrivent
+//   la narration. Plus on optimise, plus le Dilemme du Créateur se révèle.
+// ============================================================
+const LEGACIES=[
+  {id:"curiosite", icon:"🔭", name:"Curiosité",  color:"#9cc3ff",
+   desc:"Chaque niveau : ×1,12 connaissance. Synergie avec Sagesse.",
+   lore:"Une espèce qui ne cesse de demander « pourquoi ».",
+   mult:(n)=>({know:Math.pow(1.12,n)})},
+  {id:"ambition", icon:"🔥", name:"Ambition",   color:"#ff7a3c",
+   desc:"Chaque niveau : ×1,15 énergie. Plus puissant seul.",
+   lore:"Une espèce qui veut toujours davantage.",
+   mult:(n)=>({energy:Math.pow(1.15,n)})},
+  {id:"harmonie",  icon:"🌿", name:"Harmonie",   color:"#7fcf9e",
+   desc:"Chaque niveau : ×1,12 population & culture. Réduit le coût humain.",
+   lore:"Une espèce en paix avec elle-même et le monde.",
+   mult:(n)=>({pop:Math.pow(1.12,n), culture:Math.pow(1.12,n)})},
+  {id:"sagesse",   icon:"📖", name:"Sagesse",    color:"#d8b87a",
+   desc:"Chaque niveau : ×1,08 TOUT. Synergie : ×1,3 si Curiosité ≥ 3.",
+   lore:"Une espèce qui se souvient de ses erreurs.",
+   mult:(n)=>({all:Math.pow(1.08,n)})},
+];
+function legLvl(id){ return (G.legacies&&G.legacies[id])||0; }
+// produit des multiplicateurs d'héritage par ressource (+ synergies)
+function legacyMult(resKey){
+  let m=1;
+  for(const L of LEGACIES){ const n=legLvl(L.id); if(!n) continue;
+    const e=L.mult(n);
+    if(e.all) m*=e.all;
+    if(e[resKey]) m*=e[resKey];
+  }
+  // synergie Sagesse × Curiosité
+  if(legLvl("sagesse")>0 && legLvl("curiosite")>=3) m*=1.3;
+  return m;
+}
+function legacySummary(){
+  const parts=[];
+  for(const L of LEGACIES){ const n=legLvl(L.id); if(n) parts.push(L.icon+n); }
+  return parts.length? parts.join(" ") : "aucun";
+}
 
 // multiplicateurs issus des découvertes
 function techMult(kind){
@@ -1006,12 +1051,12 @@ function rateOf(resKey){
   }
   // multiplicateurs : global + spécifique ressource. Population n'est pas dopée par popMult (sinon boucle).
   if(resKey==="pop"){
-    return r * techMult("pop") * sparkMult() * eventMult() * challengeRewardMult();
+    return r * techMult("pop") * sparkMult() * eventMult() * challengeRewardMult() * legacyMult("pop");
   }
   const km = resKey==="know" ? challengeKnowMult() : 1;
-  return r * globalMult() * techMult(resKey) * km;
+  return r * globalMult() * techMult(resKey) * km * legacyMult(resKey);
 }
-function clickValue(){ return G.clickPower * globalMult() * techMult("know") * decreeClickMult() * challengeKnowMult(); }
+function clickValue(){ return G.clickPower * globalMult() * techMult("know") * decreeClickMult() * challengeKnowMult() * legacyMult("know"); }
 
 // ---------- Boucle ----------
 let lastRender=0;
@@ -1285,6 +1330,7 @@ function renderStats(){
     row("Population",pp,`log(pop)`)+
     row("Décret de Flux",dg,`niv.${decreeLvl("flux")}`)+
     row("Récompenses d'épreuves",ch)+
+    row("Héritages (sur 🧠)",legacyMult("know"),legacySummary())+
     (ev!==1?row("Bonus temporaire",ev,"actif !"):"")+
     `<div class="stat-row" style="border-top:1px solid var(--gold);margin-top:4px;padding-top:8px">
       <span style="color:var(--gold-soft)"><b>MULTIPLICATEUR TOTAL</b></span><b style="color:var(--gold-soft)">×${total.toFixed(2)}</b></div>`+
@@ -1461,8 +1507,12 @@ function transcend(){
         Sound.init();
         const proceed=await showRevelation();
         if(!proceed) return; // fin secrète gérée dans showRevelation
+        // LE DILEMME DU CRÉATEUR : la transcendance a un coût humain
+        const souls=Math.floor(G.res.pop);
+        await chooseLegacy(souls);   // grave un Héritage (cœur du jeu)
         const keepSparks=pot;
         const meta=carryMeta(G);
+        meta.soulsSpent=(meta.soulsSpent||0)+souls;
         G=newGame(); applyMeta(G, meta); G.sparks=keepSparks;
         applyStartingDecrees();                          // Décrets : départ avancé
         applyTheme(0); syncDisplay();
@@ -1476,6 +1526,39 @@ function transcend(){
     ]
   });
 }
+
+// ---------- HÉRITAGE : graver un trait + révéler le coût humain ----------
+function chooseLegacy(souls){ return new Promise(resolve=>{
+  // texte du Dilemme du Créateur, qui s'assombrit avec le nombre de cycles
+  G.dilemmaSeen=(G.dilemmaSeen||0)+1;
+  const d=G.dilemmaSeen;
+  let conscience;
+  if(d<=1) conscience=`Cette civilisation comptait <b>${fmt(souls)}</b> âmes. Elles se dissolvent pour que la suivante soit plus forte.`;
+  else if(d<=3) conscience=`Encore <b>${fmt(souls)}</b> âmes dissoutes. Total effacé à travers les cycles : <b>${fmt((G.soulsSpent||0)+souls)}</b>. Pour un multiplicateur.`;
+  else if(d<=6) conscience=`<b>${fmt(souls)}</b> vies de plus. <b>${fmt((G.soulsSpent||0)+souls)}</b> au total. Optimises-tu une humanité… ou la sacrifies-tu ?`;
+  else conscience=`Tu sais désormais ce que tu fais. <b>${fmt((G.soulsSpent||0)+souls)}</b> âmes effacées pour des chiffres. La boucle peut être rompue — mais pas par toi, pas encore.`;
+
+  const m=el("modal");
+  m.className="modal kind-dilemma";
+  m.innerHTML=`<div class="ev-tag dilemma">⟡ Héritage</div>
+    <div class="ev-ic">✶</div><h3>Que retient l'humanité ?</h3>
+    <p>Avant de renaître, gravez UN trait dans la mémoire de l'espèce. Il s'accumule à chaque cycle et façonne tout ce qui suit.</p>
+    <p style="color:var(--red);font-size:12.5px;font-style:italic">${conscience}</p>
+    <div class="choices" id="legChoices"></div>`;
+  const cont=m.querySelector("#legChoices");
+  for(const L of LEGACIES){
+    const n=legLvl(L.id);
+    const b=document.createElement("button");
+    b.className="choice";
+    b.innerHTML=`<b style="color:${L.color}">${L.icon} ${L.name}</b> <span style="color:var(--dim)">(niv. ${n}→${n+1})</span><br>
+      <span style="font-size:12px;color:var(--muted)">${L.desc}</span><br>
+      <span style="font-size:11px;color:var(--dim);font-style:italic">« ${L.lore} »</span>`;
+    b.onclick=()=>{ if(!G.legacies)G.legacies={}; G.legacies[L.id]=n+1;
+      Sound.achieve(); closeModal(); resolve(); };
+    cont.appendChild(b);
+  }
+  el("overlay").classList.add("show");
+}); }
 
 // ---------- Couche 2 : l'Éveil Cosmique ----------
 function awaken(){
