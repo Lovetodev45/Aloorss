@@ -519,6 +519,7 @@ body{transition:background 1.6s ease}
     <div class="tab" data-tab="stats">📊 Civilisation</div>
     <div class="tab" data-tab="transcend">✦ Transcendance</div>
     <div class="tab" data-tab="cosmos" id="cosmosTab" style="display:none">✸ Cosmos <span class="badge" id="cosmosBadge" style="display:none">0</span></div>
+    <div class="tab" data-tab="trials" id="trialsTab" style="display:none">⟁ Épreuves <span class="badge" id="trialsBadge" style="display:none">0</span></div>
   </div>
 
   <!-- Panels -->
@@ -579,6 +580,14 @@ body{transition:background 1.6s ease}
     <div class="grid" id="decreeGrid"></div>
   </div>
 
+  <div class="panel" id="panel-trials">
+    <div class="section-h">⟁ Les Épreuves — <span id="trialsProgress">0 / 0</span></div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.55">
+      Des runs sous contraintes extrêmes pour les esprits qui cherchent le défi. Chaque épreuve réinitialise votre cycle (sans gain d'étincelle) mais offre une <b style="color:var(--gold-soft)">récompense permanente</b> en cas de réussite. Vos Singularités et Décrets sont préservés.</p>
+    <div id="trialBanner"></div>
+    <div class="grid" id="trialGrid"></div>
+  </div>
+
   <footer>
     ÆON — une épopée incrémentale · de la première étincelle aux étoiles<br>
     100&nbsp;% hors-ligne · aucune donnée ne quitte votre navigateur<br>
@@ -636,6 +645,13 @@ body{transition:background 1.6s ease}
     <div class="admin-grid">
       <button class="admin-btn" data-adm="sing-5">+5 ✸</button>
       <button class="admin-btn" data-adm="sing-50">+50 ✸</button>
+    </div>
+  </div>
+  <div class="admin-sec">
+    <div class="admin-sub">Épreuves (génie) ⟁</div>
+    <div class="admin-grid">
+      <button class="admin-btn" data-adm="unlock-trials">Débloquer onglet</button>
+      <button class="admin-btn" data-adm="reveal-secret">Révéler le secret</button>
     </div>
   </div>
   <div class="admin-sec">
@@ -813,6 +829,10 @@ function newGame(){
     lastEvent:Date.now(),
     eventBoost:1,         // multiplicateur temporaire d'évènement
     eventBoostUntil:0,
+    // ---- Dimension génie : Épreuves ----
+    challenge:null,       // id de l'épreuve en cours (null = partie normale)
+    runClicks:0,          // clics manuels de la run en cours (pour épreuves "sans clic")
+    runStart:Date.now(),  // début de la run en cours (pour speedruns)
   };
 }
 
@@ -826,6 +846,8 @@ function carryMeta(g){
     singularities:g.singularities||0, decrees:g.decrees||{}, awakenings:g.awakenings||0,
     // souvenirs narratifs de la couche 2
     awakenSeen:g.awakenSeen,
+    // dimension génie : épreuves accomplies + secret découvert (permanents)
+    challengesDone:g.challengesDone||{}, secretFound:g.secretFound, bestTimes:g.bestTimes||{},
   };
 }
 function applyMeta(g, meta){ Object.assign(g, meta); return g; }
@@ -851,7 +873,7 @@ function techMult(kind){
 function sparkMult(){ return (1 + G.sparks*0.03) * decreeSparkPotency(); }
 function popMult(){ return 1 + Math.log10(1+G.res.pop)*0.15; } // population dope la prod globale
 function eventMult(){ return Date.now()<G.eventBoostUntil ? G.eventBoost : 1; }
-function globalMult(){ return techMult("global") * sparkMult() * popMult() * eventMult() * decreeGlobalMult(); }
+function globalMult(){ return techMult("global") * sparkMult() * popMult() * eventMult() * decreeGlobalMult() * challengeRewardMult(); }
 
 // ---------- Couche 2 : Décrets Cosmiques ----------
 // Chaque décret est permanent (survit à toutes les renaissances et éveils).
@@ -918,11 +940,12 @@ function rateOf(resKey){
   }
   // multiplicateurs : global + spécifique ressource. Population n'est pas dopée par popMult (sinon boucle).
   if(resKey==="pop"){
-    return r * techMult("pop") * sparkMult() * eventMult();
+    return r * techMult("pop") * sparkMult() * eventMult() * challengeRewardMult();
   }
-  return r * globalMult() * techMult(resKey);
+  const km = resKey==="know" ? challengeKnowMult() : 1;
+  return r * globalMult() * techMult(resKey) * km;
 }
-function clickValue(){ return G.clickPower * globalMult() * techMult("know") * decreeClickMult(); }
+function clickValue(){ return G.clickPower * globalMult() * techMult("know") * decreeClickMult() * challengeKnowMult(); }
 
 // ---------- Boucle ----------
 let lastRender=0;
@@ -939,8 +962,11 @@ function loop(now){
   // garde-fou : aucune ressource ne peut être négative ou NaN
   sanitizeResources();
 
-  // évènement aléatoire toutes ~75-140s
-  if(Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
+  // épreuve en cours : vérifie la réussite à chaque tick
+  if(G.challenge) checkChallenge();
+
+  // évènement aléatoire toutes ~75-140s (pas pendant une épreuve : on garde le contrôle)
+  if(!G.challenge && Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
     triggerEvent(); G.lastEvent=Date.now();
   }
 
@@ -1009,7 +1035,7 @@ function render(){
 
   el("sparkSub").textContent = "+"+fmt(clickValue())+" connaissance par éveil";
 
-  renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend(); renderCosmos();
+  renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend(); renderCosmos(); renderTrials();
   updateObjective();
   checkAchievements();
 }
@@ -1199,6 +1225,51 @@ function renderCosmos(){
   el("decreeGrid").innerHTML=html;
 }
 
+// ---------- Rendu : Épreuves ----------
+function renderTrials(){
+  // l'onglet apparaît dès la 1re transcendance (le joueur a goûté au prestige)
+  const unlocked = (G.sparks>0)||(G.awakenings>0)||Object.keys(G.challengesDone||{}).length>0||G.secretFound;
+  const tab=el("trialsTab"); if(tab) tab.style.display=unlocked?"":"none";
+  if(!unlocked) return;
+  const visible=CHALLENGES.filter(c=>!c.secret || G.secretFound || chalDone(c.id));
+  const done=visible.filter(c=>chalDone(c.id)).length;
+  el("trialsProgress").textContent=`${done} / ${visible.length}`;
+  const badge=el("trialsBadge");
+  if(badge){ const avail=G.challenge?0:visible.filter(c=>!chalDone(c.id)).length;
+    badge.style.display=avail>0?"inline-block":"none"; badge.textContent=avail; }
+
+  // bannière de l'épreuve en cours
+  const cur=currentChallenge();
+  const banner=el("trialBanner");
+  if(cur){
+    banner.innerHTML=`<div class="stat-box" style="border-color:var(--accent)">
+      <div style="font-family:'Cinzel',serif;color:var(--accent-light);font-size:15px;margin-bottom:4px">${cur.icon} Épreuve en cours : ${cur.name}</div>
+      <div style="font-size:12.5px;color:var(--muted);line-height:1.5">${cur.rule}</div>
+      <div style="font-size:12px;color:var(--dim);margin-top:6px">Chrono : ${fmtTime(Math.floor((Date.now()-G.runStart)/1000))} · ${cur.valid()?'<span style="color:var(--green)">conditions respectées ✓</span>':'<span style="color:var(--red)">conditions rompues ✗</span>'}</div>
+      <div class="btn-row" style="margin-top:10px"><button class="ghost danger" data-abandon="1">Abandonner l'épreuve</button></div>
+    </div>`;
+  } else banner.innerHTML="";
+
+  let html="";
+  for(const c of visible){
+    const ok=chalDone(c.id), active=G.challenge===c.id;
+    const best=G.bestTimes&&G.bestTimes[c.id];
+    html+=`<div class="card ${ok?'owned-tech':''}" style="${c.secret?'border-color:var(--gold)':''}">
+      <div class="card-head"><div class="card-ic">${c.icon}</div>
+        <div style="flex:1"><div class="card-title">${c.name} ${ok?'<span class="owned">✓ accomplie</span>':''}</div>
+        <div class="card-sub">${c.secret?'⟁ Épreuve secrète':'Récompense permanente'}</div></div></div>
+      <div class="card-desc"><b>${c.rule}</b><br><span style="color:var(--dim)">${c.detail}</span><br>
+        <span style="color:var(--gold-soft)">🎁 ${c.reward}</span>${best?`<br><span style="color:var(--dim)">Meilleur temps : ${fmtTime(best)}</span>`:''}</div>
+      <div class="card-foot">
+        ${ok?'<span class="tag-pill" style="color:var(--gold);border-color:var(--gold)">accomplie</span>'
+          : active?'<span class="tag-pill" style="color:var(--accent-light);border-color:var(--accent)">en cours</span>'
+          : G.challenge?'<span class="cost no">épreuve déjà en cours</span>'
+          : `<button class="buy" data-trial="${c.id}">Relever</button>`}
+      </div></div>`;
+  }
+  el("trialGrid").innerHTML=html;
+}
+
 // ---------- Actions ----------
 function buyBuilding(id){
   const b=BUILDINGS.find(x=>x.id===id); if(!b) return;
@@ -1331,8 +1402,129 @@ async function showAwakenNarr(gain){
   });
 }
 
-// ---------- Évènements ----------
-// Helpers d'effets — gains "X secondes de production", boosts/malus temporaires.
+// ============================================================
+//   DIMENSION GÉNIE — Les Épreuves (Challenges)
+//   Runs sous contraintes extrêmes. Réussir = bonus PERMANENT unique.
+//   Pensées pour théorycrafters/min-maxers. Tout est facultatif.
+// ============================================================
+const CHALLENGES=[
+  {id:"mute", icon:"🔇", name:"L'Âge muet",
+   rule:"Atteignez l'Antiquité (1,2 K connaissance) SANS jamais éveiller manuellement.",
+   detail:"Aucun clic d'éveil autorisé. Tout doit venir de la production passive.",
+   reward:"L'éveil n'est plus jamais nécessaire : +25 % de production passive permanente.",
+   goalAge:1,
+   valid:()=>G.runClicks===0,
+   failHint:"Vous avez éveillé l'esprit — l'épreuve est rompue. Recommencez-la pour réussir.",
+   mult:1.25},
+  {id:"ascetic", icon:"🪨", name:"L'Ascète",
+   rule:"Atteignez la Renaissance (600 K) avec au plus 12 bâtiments au total.",
+   detail:"La force brute est interdite. Optimisez chaque découverte.",
+   reward:"+30 % de production permanente. La rareté rend plus fort.",
+   goalAge:3,
+   valid:()=>totalBuildings()<=12,
+   failHint:"Plus de 12 bâtiments : l'épreuve est rompue.",
+   mult:1.30},
+  {id:"sprint", icon:"⚡", name:"Le Sprint",
+   rule:"Atteignez le Moyen Âge (25 K) en moins de 8 minutes.",
+   detail:"Course contre la montre. Le chrono court dès l'entrée dans l'épreuve.",
+   reward:"+20 % de production permanente. La vitesse est une vertu.",
+   goalAge:2,
+   valid:()=>(Date.now()-G.runStart)<8*60*1000,
+   failHint:"Le chrono dépasse 8 minutes : relancez l'épreuve.",
+   mult:1.20},
+  {id:"mono", icon:"🧠", name:"Le Monomane",
+   rule:"Atteignez l'Ère Industrielle (15 M) sans construire un seul bâtiment de culture ni de population.",
+   detail:"Seuls la connaissance et l'énergie sont permis. Pas de Temple, Cité, Réseau social, Colonie.",
+   reward:"×1,4 production de connaissance, permanent.",
+   goalAge:4,
+   valid:()=>!BUILDINGS.some(b=>(b.res==="culture"||b.res==="pop")&&getCount(b.id)>0),
+   failHint:"Un bâtiment de culture/population existe : épreuve rompue.",
+   mult:1.0, knowMult:1.4},
+  {id:"pacifist", icon:"🕊️", name:"L'Inébranlable",
+   rule:"Atteignez l'Ère de l'Information (400 M) sans accepter aucune crise négative (×<1).",
+   detail:"Refusez toute épreuve qui ralentit la production. Chaque crise doit être encaissée par sacrifice, jamais par ralentissement.",
+   reward:"Les crises ne vous ralentissent plus jamais autant : +35 % de production permanente.",
+   goalAge:5,
+   valid:()=>!G._tookSlowdown,
+   failHint:"Vous avez accepté un ralentissement : épreuve rompue.",
+   mult:1.35},
+  // ---- Épreuve SECRÈTE (cachée jusqu'à découverte du code) ----
+  {id:"void", icon:"◼", name:"Le Vide", secret:true,
+   rule:"⟁ ƎON ⟁ — atteignez la Transcendance (2,5 T) en partant du Vide.",
+   detail:"Une seule règle connue : il faut comprendre ce que les autres ignorent.",
+   reward:"✦ Débloque le titre « Architecte du Vide » et +100 % de production permanente.",
+   goalAge:8,
+   valid:()=>true,
+   failHint:"",
+   mult:2.0},
+];
+function chalDone(id){ return !!(G.challengesDone&&G.challengesDone[id]); }
+function challengeRewardMult(){
+  let m=1;
+  for(const c of CHALLENGES){ if(chalDone(c.id)) m*=(c.mult||1); }
+  return m;
+}
+function challengeKnowMult(){
+  let m=1;
+  for(const c of CHALLENGES){ if(chalDone(c.id)&&c.knowMult) m*=c.knowMult; }
+  return m;
+}
+function currentChallenge(){ return G.challenge? CHALLENGES.find(c=>c.id===G.challenge) : null; }
+
+// Entrer dans une épreuve : reset complet de la run (comme une transcendance,
+// mais SANS gagner d'étincelles — on garde le méta, on impose la contrainte).
+function enterChallenge(id){
+  const c=CHALLENGES.find(x=>x.id===id); if(!c) return;
+  if(chalDone(id)){ toast("✔ Épreuve déjà accomplie."); return; }
+  showModal({
+    kind:"dilemma", icon:c.icon, title:c.name,
+    text:`<b>Règle :</b> ${c.rule}<br><br>${c.detail}<br><br><b>Récompense :</b> ${c.reward}<br><br>Entrer dans l'épreuve réinitialise votre cycle actuel (sans gain d'étincelle). Vos Singularités et Décrets restent.`,
+    choices:[
+      {label:"<b>Relever l'épreuve</b>", fn:()=>{
+        const meta=carryMeta(G);
+        G=newGame(); applyMeta(G, meta);
+        G.challenge=id; G.runStart=Date.now(); G._tookSlowdown=false;
+        applyStartingDecrees(); applyTheme(0); syncDisplay();
+        flash(); shake(1.0); Sound.transcend();
+        toast(`${c.icon} Épreuve « <b>${c.name}</b> » commencée.`);
+        render(); save();
+      }},
+      {label:"Renoncer", fn:()=>{}},
+    ]
+  });
+}
+function abandonChallenge(){
+  if(!G.challenge) return;
+  const meta=carryMeta(G);
+  G=newGame(); applyMeta(G, meta);
+  applyStartingDecrees(); applyTheme(0); syncDisplay();
+  toast("Épreuve abandonnée. Retour au cycle normal.");
+  render(); save();
+}
+// Vérifie réussite/échec de l'épreuve en cours (appelé dans la boucle)
+function checkChallenge(){
+  const c=currentChallenge(); if(!c) return;
+  if(G.age>=c.goalAge){
+    if(c.valid()){
+      // RÉUSSITE
+      if(!G.challengesDone) G.challengesDone={};
+      G.challengesDone[c.id]=true;
+      const t=Math.floor((Date.now()-G.runStart)/1000);
+      if(!G.bestTimes) G.bestTimes={};
+      if(!G.bestTimes[c.id]||t<G.bestTimes[c.id]) G.bestTimes[c.id]=t;
+      const wasChal=c.id;
+      const meta=carryMeta(G);
+      G=newGame(); applyMeta(G, meta);
+      applyStartingDecrees(); applyTheme(0); syncDisplay();
+      flash(); shake(1.4); FX.confetti(280); Sound.transcend();
+      showModal({ kind:"dilemma", icon:c.icon, title:"Épreuve accomplie !",
+        text:`<b>${c.name}</b> — réussie en ${fmtTime(t)}.<br><br>Récompense permanente débloquée :<br><b style="color:var(--gold-soft)">${c.reward}</b>`,
+        choices:[{label:"Gloire éternelle", fn:()=>{}}] });
+      render(); save();
+    }
+  }
+}
+function fmtTime(s){ const m=Math.floor(s/60), r=s%60; return m>0? `${m} min ${r} s` : `${r} s`; }
 function grant(res,sec){ const g=Math.max(0,rateOf(res)*sec); G.res[res]+=g; if(res==="know")G.totalKnow+=g; return g; }
 function spend(res,sec){ const c=Math.max(0,rateOf(res)*sec); G.res[res]=Math.max(0,G.res[res]-c); return c; }
 
@@ -1407,6 +1599,7 @@ const EVENTS=[
 ];
 function boost(mult,sec){ G.eventBoost=mult; G.eventBoostUntil=Date.now()+sec*1000;
   const bad=mult<1;
+  if(bad) G._tookSlowdown=true;   // marque un ralentissement (épreuve "L'Inébranlable")
   if(bad){ shake(.8); Sound.event(); toast(`⚠ Épreuve : production <b>×${mult}</b> pendant ${sec} s.`); }
   else { shake(.6); FX.confetti(60); Sound.achieve(); toast(`Bonus actif : <b>×${mult}</b> pendant ${sec} s !`); }
 }
@@ -1454,6 +1647,7 @@ function doSpark(e){
   const v=clickValue()*comboMult();
   G.res.know+=v; G.totalKnow+=v;
   G.clicks=(G.clicks||0)+1;
+  G.runClicks=(G.runClicks||0)+1;   // pour l'épreuve "L'Âge muet"
   const btn=el("sparkBtn"), rect=btn.getBoundingClientRect();
   const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
   const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
@@ -1551,6 +1745,8 @@ document.addEventListener("click", e=>{
   const buy=e.target.closest("[data-buy]"); if(buy){ buyBuilding(buy.dataset.buy); return; }
   const tech=e.target.closest("[data-tech]"); if(tech){ buyTech(tech.dataset.tech); return; }
   const dec=e.target.closest("[data-decree]"); if(dec){ buyDecree(dec.dataset.decree); return; }
+  const tr=e.target.closest("[data-trial]"); if(tr){ enterChallenge(tr.dataset.trial); return; }
+  if(e.target.closest("[data-abandon]")){ abandonChallenge(); return; }
 });
 
 // onglets
@@ -1577,7 +1773,33 @@ document.addEventListener("keydown", e=>{
   if(e.code==="Space" && el("overlay").classList.contains("show")===false){
     e.preventDefault(); doSpark();
   }
+  secretKey(e);
 });
+
+// ---------- SECRET : la séquence cachée révèle l'épreuve « Le Vide » ----------
+// Code : Z O N (les lettres de ÆON sans le Æ) — découvrable via indices dans le lore.
+const SECRET_SEQ=["z","o","n"]; let _secretBuf=[];
+function secretKey(e){
+  if(G.secretFound) return;
+  const k=(e.key||"").toLowerCase();
+  if(k.length!==1) return;
+  _secretBuf.push(k); if(_secretBuf.length>SECRET_SEQ.length) _secretBuf.shift();
+  if(_secretBuf.join("")===SECRET_SEQ.join("")) revealSecret();
+}
+// Alternative tactile : 7 tapotements sur le logo
+(function(){ const logo=document.querySelector(".logo"); if(!logo) return; let n=0,t0=0;
+  logo.style.cursor="default";
+  logo.addEventListener("click",()=>{ const now=Date.now(); if(now-t0>1200)n=0; t0=now; n++;
+    if(n>=7 && !G.secretFound) revealSecret(); }); })();
+function revealSecret(){
+  if(G.secretFound) return;
+  G.secretFound=true; _secretBuf=[];
+  flash(); FX.confetti(200); Sound.transcend();
+  showModal({ kind:"crisis", icon:"◼", title:"⟁ Le Vide s'ouvre ⟁",
+    text:`Vous avez vu ce que les autres ignorent.<br><br>Une épreuve interdite apparaît dans l'onglet <b>⟁ Épreuves</b> : <b>Le Vide</b>.<br><br>Peu la trouveront. Encore moins la vaincront.`,
+    choices:[{label:"Accepter le savoir interdit", fn:()=>{ render(); save(); }}] });
+  save();
+}
 
 // ---------- Champ d'étoiles ----------
 // Champ d'étoiles 2D : rendu UNE seule fois en statique (le monde 3D anime déjà
@@ -2059,6 +2281,8 @@ const Admin=(()=>{
     "spark-60":()=>{ G.sparks=Math.max(G.sparks,60); toast(`🛠️ ${G.sparks} étincelles (éveil cosmique disponible).`); },
     "sing-5":()=>{ G.singularities=(G.singularities||0)+5; toast(`🛠️ +5 ✸ (total ${G.singularities}).`); },
     "sing-50":()=>{ G.singularities=(G.singularities||0)+50; toast(`🛠️ +50 ✸ (total ${G.singularities}).`); },
+    "unlock-trials":()=>{ G.sparks=Math.max(G.sparks,1); toast("🛠️ Onglet Épreuves débloqué."); },
+    "reveal-secret":()=>{ revealSecret(); },
     "story-prologue":()=>{ G.prologueSeen=false; checkPrologue(); },
     "story-chronicle":()=>{ showChronicle(G.age); },
     "story-rev1":()=>{ showNarr({...REVELATION_FIRST, pre:`Analyse complète — cycle #${G.sparks+1}`}); },
