@@ -252,6 +252,15 @@ header{text-align:center;padding:20px 0 10px}
 .choice b{color:var(--accent-light)}
 
 .action-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+/* panneau audio (réglages son) */
+.audio-panel{display:none;max-width:340px;margin:10px auto 0;padding:12px 14px;
+  background:var(--surface);border:1px solid var(--hair);border-radius:12px;backdrop-filter:blur(10px)}
+.audio-panel.show{display:block;animation:fade .2s ease}
+.audio-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted);padding:5px 0}
+.audio-row span:first-child{flex:0 0 auto}
+.audio-row input[type=range]{flex:1;accent-color:var(--gold);height:4px}
+.audio-row #volVal{flex:0 0 38px;text-align:right;font-variant-numeric:tabular-nums;color:var(--gold-soft)}
+.audio-row input[type=checkbox]{accent-color:var(--gold);width:18px;height:18px;cursor:pointer}
 .action-btn{padding:10px 18px;border:1px solid var(--border-glow);border-radius:11px;cursor:pointer;font-weight:700;font-size:13px;background:var(--surface);color:var(--accent-light);transition:all .15s}
 .action-btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--text)}
 .action-btn.install{background:linear-gradient(120deg,var(--gold),#ffe9a3);color:#2a1f00;border-color:transparent;box-shadow:0 0 18px var(--gold-glow)}
@@ -566,6 +575,17 @@ body{transition:background 1.6s ease}
       <button class="action-btn" id="shareBtn">📣 Partager ma civilisation</button>
       <button class="action-btn" id="muteBtn">🔊 Son</button>
       <button class="action-btn install" id="installBtn" style="display:none">📲 Installer l'app</button>
+    </div>
+    <div class="audio-panel" id="audioPanel">
+      <div class="audio-row">
+        <span>🔈 Volume</span>
+        <input type="range" id="volSlider" min="0" max="100" value="45">
+        <span id="volVal">45%</span>
+      </div>
+      <label class="audio-row" style="cursor:pointer">
+        <span>🌌 Ambiance de fond</span>
+        <input type="checkbox" id="ambChk" checked>
+      </label>
     </div>
   </div>
 
@@ -899,13 +919,15 @@ function newGame(){
     runStart:Date.now(),  // début de la run en cours (pour speedruns)
     missions:null,        // 3 missions actives (objectifs courts renouvelés)
     missionsDone:0,       // compteur total de missions accomplies
+    volume:0.45,          // volume global 0..1
+    ambientOn:true,       // ambiance de fond on/off
   };
 }
 
 // Champs méta-progression qui survivent à TOUTES les renaissances/éveils
 function carryMeta(g){
   return {
-    muted:g.muted, prologueSeen:true,
+    muted:g.muted, volume:g.volume, ambientOn:g.ambientOn, prologueSeen:true,
     revelationSeen:g.revelationSeen, deepRevSeen:g.deepRevSeen, endingSeen:g.endingSeen,
     chronicles:g.chronicles||[],
     // couche 2 (cosmique) : toujours préservée
@@ -2296,7 +2318,7 @@ const Sound=(()=>{
   let ctx,master,enabled=true;
   function init(){ if(ctx) return;
     try{ ctx=new (window.AudioContext||window.webkitAudioContext)();
-      master=ctx.createGain(); master.gain.value=.5; master.connect(ctx.destination);
+      master=ctx.createGain(); master.gain.value=(G&&G.volume!=null)?G.volume:.45; master.connect(ctx.destination);
     }catch(e){} }
   function tone(freq,dur,type,vol,slideTo){
     if(!enabled||!ctx) return;
@@ -2327,23 +2349,30 @@ const Sound=(()=>{
     if(start && !ambOn){
       ambOn=true;
       const g=ctx.createGain(); g.gain.value=0; g.connect(master);
-      g.gain.linearRampToValueAtTime(0.05, ctx.currentTime+3);
-      // deux oscillateurs très graves légèrement désaccordés = profondeur cosmique
-      [55,55.4,82.5].forEach(f=>{ const o=ctx.createOscillator(); o.type="sine";
-        o.frequency.value=f; const lfo=ctx.createOscillator(),lg=ctx.createGain();
-        lfo.frequency.value=0.07; lg.gain.value=2; lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(g); o.start(); lfo.start(); ambNodes.push(o,lfo); });
-      ambNodes.push(g);
+      g.gain.linearRampToValueAtTime(0.028, ctx.currentTime+4);   // très discret
+      // nappe AÉRÉE : accord doux et clair (pas de grave boueux) + passe-bas adouci
+      const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=900; lp.connect(g);
+      [220, 277.2, 329.6].forEach((f,i)=>{ const o=ctx.createOscillator(); o.type="sine";
+        o.frequency.value=f;
+        const og=ctx.createGain(); og.gain.value=i===0?0.6:0.32; o.connect(og); og.connect(lp);
+        const lfo=ctx.createOscillator(),lg=ctx.createGain();
+        lfo.frequency.value=0.05+i*0.02; lg.gain.value=0.6; lfo.connect(lg); lg.connect(o.frequency);
+        o.start(); lfo.start(); ambNodes.push(o,lfo); });
+      ambNodes.push(g,lp);
     } else if(!start && ambOn){
       ambOn=false; ambNodes.forEach(n=>{ try{ n.stop&&n.stop(); }catch(e){} }); ambNodes=[];
     }
   }
+  function setVolume(v){ if(master) master.gain.value=v; }
+  function setAmbient(on){ ambient(on); }
   return {
     init,
     toggle(){ enabled=!enabled; if(enabled) ambient(true); else ambient(false); return enabled; },
     isOn(){ return enabled; },
     set(v){ enabled=v; },
     ambient(b){ if(enabled) ambient(b); },
+    setVolume,                 // volume global 0..1
+    setAmbient(b){ if(enabled) setAmbient(b); },   // ambiance on/off indépendante
     // clic : échelle de hauteur MONTANTE avec le combo (le "coin ladder" addictif)
     click(combo){ const step=Math.min(combo||0,40); const b=380+step*22;
       tone(b,.08,"triangle",.15,b*1.5);
@@ -2622,10 +2651,32 @@ function checkDailyBonus(){
    (plus bas) garde tous les appels World.* inoffensifs. Fond cosmique statique. */
 
 // ---------- Bouton son ----------
-el("muteBtn").onclick=()=>{ Sound.init(); const on=Sound.toggle(); G.muted=!on;
-  el("muteBtn").textContent = on ? "🔊 Son" : "🔇 Muet"; if(on) Sound.blip(); save(); };
-// Débloque l'audio au premier geste (politique navigateur) + lance l'ambiance cosmique
-addEventListener("pointerdown", ()=>{ Sound.init(); Sound.ambient(true); }, {once:true});
+// Le bouton "Son" ouvre/ferme le panneau de réglages audio
+el("muteBtn").onclick=()=>{ Sound.init();
+  el("audioPanel").classList.toggle("show");
+  Sound.blip();
+};
+// Volume
+el("volSlider").oninput=(e)=>{ const v=(+e.target.value)/100;
+  G.volume=v; el("volVal").textContent=e.target.value+"%";
+  Sound.init(); Sound.setVolume(v);
+  // volume 0 = muet
+  G.muted=(v===0); Sound.set(v>0);
+  save();
+};
+// Ambiance de fond on/off
+el("ambChk").onchange=(e)=>{ G.ambientOn=e.target.checked;
+  Sound.init(); Sound.setAmbient(e.target.checked); save();
+};
+// applique les préférences sauvegardées à l'UI
+function applyAudioPrefs(){
+  const v=(G.volume!=null?G.volume:0.45);
+  el("volSlider").value=Math.round(v*100); el("volVal").textContent=Math.round(v*100)+"%";
+  el("ambChk").checked=(G.ambientOn!==false);
+}
+// Débloque l'audio au premier geste (politique navigateur) + lance l'ambiance si activée
+addEventListener("pointerdown", ()=>{ Sound.init(); Sound.setVolume(G.volume!=null?G.volume:0.45);
+  if(G.ambientOn!==false && !G.muted) Sound.ambient(true); }, {once:true});
 
 // ============================================================
 //   PANNEAU ADMIN / TEST — pour valider le jeu de bout en bout
@@ -2721,7 +2772,7 @@ safe("load", load);
 safe("sanitize", sanitizeResources);
 safe("theme", ()=>applyTheme(G.age));
 safe("syncDisplay", syncDisplay);
-safe("mute", ()=>{ if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; } });
+safe("mute", ()=>{ if(G.muted){ Sound.set(false); } applyAudioPrefs(); });
 safe("missions", initMissions);
 safe("daily", checkDailyBonus);
 safe("render", render);
