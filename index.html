@@ -42,7 +42,12 @@ body{
 #vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
   background:radial-gradient(ellipse 120% 90% at 50% 42%,transparent 38%,rgba(4,4,12,.55) 100%)}
 
-.wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 16px 80px}
+.wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 16px 80px;pointer-events:none}
+/* les éléments interactifs réactivent les clics ; les zones vides laissent passer vers le monde 3D */
+.wrap button,.wrap a,.wrap input,.wrap .card,.wrap .tab,.wrap .res,.wrap .stat-box,
+.wrap .age-banner,.wrap .panel,.wrap .transcend-box,.wrap .modal,.wrap header{pointer-events:auto}
+.spark-zone{pointer-events:none}
+.spark-zone .spark-btn,.spark-zone .action-btn{pointer-events:auto}
 
 /* ===== Header ===== */
 header{text-align:center;padding:34px 0 18px}
@@ -542,6 +547,10 @@ body{transition:background 1.6s ease}
 
 <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
 
+<!-- Moteur 3D : Three.js (local, hors-ligne) puis le monde ÆON -->
+<script src="vendor/three.min.js"></script>
+<script src="world.js"></script>
+
 <script>
 "use strict";
 /* ============================================================
@@ -922,10 +931,14 @@ function buyBuilding(id){
   G.buildings[id]=getCount(id)+1;
   Sound.buy();
   render();
+  syncWorld();                       // fait apparaître le bâtiment dans le monde 3D
+  if(World.isActive()){ World.focusBuilding(id); World.ping(0.5); }
   const card=(document.querySelector(`[data-buy="${id}"]`)||{}).closest?.(".card");
   if(card){ card.classList.add("bought"); const p=centerOf(card);
     FX.burst(p.x,p.y,{n:14,colors:["#5ee0a0","#a99bff","#fff7d6"],speed:3.6,size:3}); }
 }
+// pousse l'état des bâtiments vers la scène 3D
+function syncWorld(){ if(World.isActive()) World.syncBuildings(G.buildings); }
 function buyTech(id){
   const t=TECHS.find(x=>x.id===id); if(!t||G.techs[id]) return;
   const ck=t.cost.know||0, cc=t.cost.culture||0;
@@ -978,7 +991,7 @@ function transcend(){
         G.revelationSeen=rev; G.deepRevSeen=deep; G.endingSeen=end;
         G.prologueSeen=true; G.chronicles=chrono;
         applyTheme(0); syncDisplay();
-        World.setAge(0); World.ping(1.4);
+        World.setAge(0); World.ping(1.4); syncWorld();   // vide la planète et recommence
         flash(); shake(1.4); FX.confetti(240); Sound.transcend();
         toast(`✦ Renaissance. Cycle ${keepSparks+1} commence. <b>${keepSparks}</b> étincelle(s) préservée(s).`);
         render(); save();
@@ -1131,11 +1144,7 @@ function importSave(file){
 
 // ---------- Liaison UI ----------
 el("sparkBtn").addEventListener("click", doSpark);
-// Toucher la planète (zone 3D au-dessus du bouton) éveille aussi l'esprit
-document.querySelector(".spark-zone").addEventListener("pointerdown", e=>{
-  if(e.target.closest(".spark-btn")) return; // le bouton gère son propre clic
-  doSpark(e);
-});
+// (Toucher la planète elle-même éveille l'esprit — géré par World.onWorldClick au démarrage)
 el("shareBtn").addEventListener("click", doShare);
 el("installBtn").addEventListener("click", async ()=>{
   if(!deferredPrompt){ toast("Sur iPhone : bouton Partager ⬆ → « Sur l'écran d'accueil »."); return; }
@@ -1610,209 +1619,8 @@ function checkDailyBonus(){
   G.lastDaily=today;
 }
 
-/* ============================================================
-   WORLD — moteur 3D WebGL maison (zéro dépendance, offline)
-   Une planète procédurale qui se métamorphose à travers les âges :
-   roche nue → vie → cités lumineuses → réseau global → ère spatiale
-   → sphère de Dyson → noyau de transcendance.
-   ============================================================ */
-const World=(()=>{
-  let gl,canvas,prog,buf,raf,t0=performance.now();
-  let uni={}, ageF=0, ageTarget=0, pulse=0, dpr=1;
-  let pointer={x:0,y:0,tx:0,ty:0};
-  let ok=false;
-
-  const VERT=`
-    attribute vec2 p; varying vec2 v;
-    void main(){ v=p; gl_Position=vec4(p,0.,1.); }`;
-
-  // Fragment shader : ray-march léger d'une sphère + couches d'âge.
-  const FRAG=`
-  precision highp float;
-  varying vec2 v;
-  uniform vec2 res; uniform float time; uniform float age; uniform float pulse;
-  uniform vec2 ptr;
-
-  // --- hash & noise ---
-  float hash(vec3 p){ p=fract(p*0.3183099+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
-  float noise(vec3 x){ vec3 i=floor(x),f=fract(x); f=f*f*(3.0-2.0*f);
-    return mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),
-                   mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
-               mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),
-                   mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); }
-  float fbm(vec3 p){ float a=0.5,s=0.0; for(int i=0;i<5;i++){ s+=a*noise(p); p*=2.02; a*=0.5; } return s; }
-
-  mat2 rot(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
-
-  // Palette par âge (interpolée par mix selon 'age' continu 0..8)
-  vec3 ageColor(float seg, float n){
-    // couleurs de surface pour chaque tranche
-    if(seg<0.5)  return mix(vec3(0.28,0.22,0.18), vec3(0.45,0.30,0.22), n);      // Pierre - roche
-    if(seg<1.5)  return mix(vec3(0.18,0.32,0.16), vec3(0.40,0.30,0.14), n);      // Antiquité - terre/verdure
-    if(seg<2.5)  return mix(vec3(0.16,0.28,0.20), vec3(0.32,0.22,0.30), n);      // Moyen Âge
-    if(seg<3.5)  return mix(vec3(0.14,0.30,0.30), vec3(0.50,0.42,0.20), n);      // Renaissance
-    if(seg<4.5)  return mix(vec3(0.22,0.18,0.14), vec3(0.40,0.34,0.24), n);      // Industrielle
-    if(seg<5.5)  return mix(vec3(0.06,0.14,0.26), vec3(0.10,0.40,0.55), n);      // Information - océans/cyan
-    if(seg<6.5)  return mix(vec3(0.16,0.06,0.30), vec3(0.45,0.20,0.65), n);      // IA - violet néon
-    if(seg<7.5)  return mix(vec3(0.04,0.08,0.22), vec3(0.10,0.25,0.60), n);      // Spatiale - bleu profond
-    return mix(vec3(0.45,0.38,0.65), vec3(0.95,0.85,0.55), n);                    // Transcendance - iridescent
-  }
-
-  void main(){
-    vec2 uv=(gl_FragCoord.xy-0.5*res)/res.y;
-    vec3 col=vec3(0.0);
-
-    // --- nébuleuse de fond ---
-    float neb=fbm(vec3(uv*2.2+vec2(time*0.01,0.0), time*0.02));
-    vec3 bg=mix(vec3(0.01,0.01,0.04), vec3(0.05,0.04,0.12), neb);
-    bg+=ageColor(age,0.5)*0.04*neb;
-    col=bg;
-
-    // --- sphère (planète) ---
-    float R=0.62;
-    vec3 ro=vec3(0.0,0.0,2.6);
-    vec3 rd=normalize(vec3(uv,-1.6));
-    // intersection sphère centrée à l'origine
-    float b=dot(ro,rd); float c=dot(ro,ro)-R*R;
-    float h=b*b-c;
-    float glow=exp(-max(length(uv)-R,0.0)*7.0); // halo
-
-    if(h>0.0){
-      h=sqrt(h); float tHit=-b-h;
-      vec3 pos=ro+rd*tHit;
-      vec3 n=normalize(pos);
-      // rotation de la planète
-      vec3 sp=pos;
-      sp.xz=rot(time*0.12)*sp.xz;
-      // relief / continents
-      float surf=fbm(sp*2.4);
-      float detail=fbm(sp*6.0)*0.5;
-      float land=smoothstep(0.45,0.62,surf);
-
-      vec3 base=ageColor(age, surf);
-      // océans pour âges avancés
-      float ocean=smoothstep(0.5,0.42,surf);
-      vec3 sea=mix(vec3(0.02,0.08,0.2), vec3(0.0,0.25,0.4), age/8.0);
-      base=mix(base, sea, ocean*smoothstep(0.5,3.0,age));
-
-      // éclairage
-      vec3 lightDir=normalize(vec3(0.6,0.5,0.8));
-      float diff=clamp(dot(n,lightDir),0.0,1.0);
-      float amb=0.18;
-      vec3 surfCol=base*(amb+diff*0.95);
-
-      // --- lumières de civilisation (côté nuit) ---
-      float night=clamp(-dot(n,lightDir),0.0,1.0);
-      float cityNoise=fbm(sp*9.0+vec3(time*0.05));
-      float cityMask=step(0.62,cityNoise)*land;
-      float civ=smoothstep(1.0,5.5,age);            // apparaît dès l'Antiquité
-      vec3 cityCol=mix(vec3(1.0,0.7,0.3), vec3(0.5,0.8,1.0), clamp((age-4.0)/4.0,0.0,1.0));
-      surfCol+=cityCol*cityMask*civ*night*1.6;
-
-      // --- grille réseau (ère info / IA) ---
-      float net=smoothstep(4.5,6.0,age);
-      float grid=abs(sin(sp.x*22.0))*abs(sin(sp.y*22.0));
-      grid=smoothstep(0.93,1.0,grid);
-      surfCol+=vec3(0.3,0.6,1.0)*grid*net*0.6*(0.5+0.5*sin(time*2.0));
-
-      // --- noyau de transcendance ---
-      float tr=smoothstep(7.2,8.0,age);
-      float core=pow(diff,2.0);
-      vec3 iri=0.5+0.5*cos(vec3(0.0,2.1,4.2)+surf*6.0+time*0.6);
-      surfCol=mix(surfCol, iri, tr*0.7);
-      surfCol+=iri*tr*0.5;
-
-      // pulsation de clic
-      surfCol+=ageColor(age,0.8)*pulse*0.6*night;
-
-      // rim light atmosphérique
-      float rim=pow(1.0-clamp(dot(n,-rd),0.0,1.0),3.0);
-      vec3 atmCol=mix(vec3(0.3,0.5,1.0), iri, tr);
-      surfCol+=atmCol*rim*(0.5+civ*0.6);
-
-      col=surfCol;
-    } else {
-      // halo atmosphérique externe
-      vec3 atmCol=mix(vec3(0.25,0.4,1.0), vec3(0.9,0.8,0.6), clamp((age-6.0)/2.0,0.0,1.0));
-      col+=atmCol*glow*0.5*(0.6+0.4*sin(time*1.5));
-      col+=atmCol*glow*pulse*0.8;
-    }
-
-    // étoiles fines
-    float st=hash(vec3(floor((uv+ptr*0.02)*420.0),1.0));
-    col+=vec3(step(0.9985,st))*0.8;
-
-    // vignette
-    col*=1.0-0.5*dot(uv,uv);
-    gl_FragColor=vec4(col,1.0);
-  }
-  `;
-
-  function compile(type,src){
-    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
-    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); return null; }
-    return s;
-  }
-
-  function init(){
-    canvas=el("world");
-    gl=canvas.getContext("webgl",{antialias:false,alpha:false,powerPreference:"high-performance"})
-      || canvas.getContext("experimental-webgl");
-    if(!gl){ canvas.style.display="none"; return; } // pas de WebGL → fallback 2D starfield reste
-    const vs=compile(gl.VERTEX_SHADER,VERT), fs=compile(gl.FRAGMENT_SHADER,FRAG);
-    if(!vs||!fs){ canvas.style.display="none"; return; }
-    prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
-    if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(prog)); canvas.style.display="none"; return; }
-    gl.useProgram(prog);
-    buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 3,-1, -1,3]),gl.STATIC_DRAW);
-    const loc=gl.getAttribLocation(prog,"p");
-    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-    uni.res=gl.getUniformLocation(prog,"res");
-    uni.time=gl.getUniformLocation(prog,"time");
-    uni.age=gl.getUniformLocation(prog,"age");
-    uni.pulse=gl.getUniformLocation(prog,"pulse");
-    uni.ptr=gl.getUniformLocation(prog,"ptr");
-    resize(); addEventListener("resize",resize);
-    // parallaxe au mouvement
-    addEventListener("pointermove",e=>{ pointer.tx=(e.clientX/innerWidth-0.5)*2; pointer.ty=(e.clientY/innerHeight-0.5)*2; });
-    ok=true; t0=performance.now(); render3d();
-  }
-
-  function resize(){
-    if(!gl) return;
-    dpr=Math.min(devicePixelRatio||1, 2);
-    // perf : réduire le DPR sur mobile
-    if(innerWidth<700) dpr=Math.min(dpr,1.5);
-    canvas.width=Math.floor(innerWidth*dpr);
-    canvas.height=Math.floor(innerHeight*dpr);
-    canvas.style.width=innerWidth+"px"; canvas.style.height=innerHeight+"px";
-    gl.viewport(0,0,canvas.width,canvas.height);
-  }
-
-  function render3d(){
-    if(!ok) return;
-    const now=performance.now(); const tt=(now-t0)/1000;
-    // lissage de l'âge & du pointeur & de la pulsation
-    ageF+=(ageTarget-ageF)*0.05;
-    pointer.x+=(pointer.tx-pointer.x)*0.05; pointer.y+=(pointer.ty-pointer.y)*0.05;
-    pulse*=0.92;
-    gl.uniform2f(uni.res,canvas.width,canvas.height);
-    gl.uniform1f(uni.time,tt);
-    gl.uniform1f(uni.age,ageF);
-    gl.uniform1f(uni.pulse,pulse);
-    gl.uniform2f(uni.ptr,pointer.x,pointer.y);
-    gl.drawArrays(gl.TRIANGLES,0,3);
-    raf=requestAnimationFrame(render3d);
-  }
-
-  return {
-    init,
-    setAge(a,instant){ ageTarget=a; if(instant) ageF=a; },
-    ping(strength){ pulse=Math.min(pulse+(strength||0.5),1.4); },
-    isActive(){ return ok; },
-  };
-})();
+/* WORLD — le moteur 3D vit maintenant dans world.js (Three.js, chargé avant ce script).
+   window.World est fourni par ce fichier externe. */
 
 // ---------- Bouton son ----------
 el("muteBtn").onclick=()=>{ Sound.init(); const on=Sound.toggle(); G.muted=!on;
@@ -1874,7 +1682,7 @@ const Admin=(()=>{
   function run(key){
     const fn=actions[key]; if(!fn) return;
     fn();
-    sanitizeResources(); syncDisplay(); render(); save();
+    sanitizeResources(); syncDisplay(); render(); syncWorld(); save();
   }
 
   function init(){
@@ -1895,6 +1703,12 @@ const Admin=(()=>{
   return {init,open,close,toggle};
 })();
 
+// ---------- Garde-fou : si world.js/Three.js n'ont pas chargé ----------
+if(typeof window.World==="undefined"){
+  window.World={ init:()=>false, isActive:()=>false, setAge(){}, ping(){},
+    syncBuildings(){}, onPick(){}, onWorldClick(){}, focusBuilding(){}, resize(){} };
+}
+
 // ---------- Démarrage ----------
 load();
 sanitizeResources();
@@ -1911,7 +1725,23 @@ if("serviceWorker" in navigator){
 }
 requestAnimationFrame(loop);
 // Démarrage du monde 3D
-World.init();
+if(World.init()){
+  World.setAge(G.age, true);
+  syncWorld();                       // recrée les bâtiments existants dans la scène
+  // clic sur un bâtiment 3D → ouvre l'onglet Bâtiments + met en avant la carte
+  World.onPick((id)=>{
+    Sound.blip();
+    const tab=document.querySelector('.tab[data-tab="build"]');
+    if(tab) tab.click();
+    const card=(document.querySelector(`[data-buy="${id}"]`)||{}).closest?.(".card");
+    if(card){ card.scrollIntoView({behavior:"smooth",block:"center"});
+      card.classList.remove("bought"); void card.offsetWidth; card.classList.add("bought"); }
+    const b=BUILDINGS.find(x=>x.id===id);
+    if(b) toast(`${b.icon} <b>${b.name}</b> — ${b.desc}`);
+  });
+  // clic sur le sol de la planète → éveil (comme le bouton)
+  World.onWorldClick(()=>{ doSpark(); });
+}
 World.setAge(G.age, true);
 setInterval(()=>{ G.lastTick=Date.now(); save(); }, 10000);
 (function(){
