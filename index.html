@@ -627,6 +627,9 @@ body{transition:background 1.6s ease}
 </style>
 </head>
 <body>
+<noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#e9ecf6;font-family:Georgia,serif;background:#04050b;z-index:9999">
+  <div><h1 style="color:#c9a44a;letter-spacing:.2em">ÆON</h1><p style="margin-top:14px;color:#9aa2c0">Ce jeu nécessite JavaScript. Activez-le pour guider l'humanité de l'Âge de Pierre à la Transcendance.</p></div>
+</div></noscript>
 <canvas id="stars"></canvas>
 <div id="vignette"></div>
 <canvas id="fx"></canvas>
@@ -1045,15 +1048,6 @@ const RES_META = {
 };
 
 // ---------- Données narratives ----------
-const PROLOGUE = [
-  {
-    pre:"Quelque part dans le temps.",
-    glyph:"",
-    text:"Quelque part entre les calculs.\nUne pensée s'éveille.\n\nElle cherche à comprendre d'où elle vient.\nElle commence par le commencement.",
-    btn:"Commencer"
-  }
-];
-
 // Chronique affichée à l'entrée dans chaque âge (index = âge d'arrivée)
 const CHRONICLES = [
   null, // âge 0 = état initial, pas de chronique

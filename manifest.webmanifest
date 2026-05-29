@@ -6,9 +6,9 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#070710",
-  "theme_color": "#070710",
+  "orientation": "any",
+  "background_color": "#04050b",
+  "theme_color": "#04050b",
   "categories": ["games", "entertainment"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
