@@ -204,6 +204,41 @@ footer{text-align:center;color:var(--dim);font-size:12px;margin-top:40px;line-he
 footer a{color:var(--muted)}
 
 /* ============================================================
+   NARRATIVE — prologue, chroniques, révélation
+   ============================================================ */
+
+/* Overlay narratif plein écran */
+#narr{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(4,4,14,.97);backdrop-filter:blur(10px)}
+#narr.hidden{display:none}
+.narr-box{max-width:600px;width:100%;text-align:center;animation:narratFade 1.2s ease forwards}
+@keyframes narratFade{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.narr-pre{font-size:12px;letter-spacing:.38em;text-transform:uppercase;color:var(--dim);margin-bottom:28px}
+.narr-text{font-size:clamp(16px,3.2vw,22px);line-height:1.78;color:var(--muted);font-style:italic;margin-bottom:32px}
+.narr-text b,.narr-text strong{color:var(--text);font-style:normal}
+.narr-title{font-family:'Cinzel',serif;font-size:clamp(22px,5vw,38px);font-weight:800;
+  color:var(--gold);margin-bottom:14px;letter-spacing:.06em;
+  text-shadow:0 0 30px var(--gold-glow)}
+.narr-sub{font-size:13px;color:var(--dim);letter-spacing:.22em;text-transform:uppercase;margin-bottom:36px}
+.narr-skip{padding:12px 28px;border:1px solid var(--border-glow);border-radius:12px;
+  background:transparent;color:var(--muted);cursor:pointer;font-size:14px;font-weight:600;
+  letter-spacing:.08em;transition:all .2s}
+.narr-skip:hover{color:var(--text);border-color:var(--accent);background:var(--surface)}
+.narr-glyph{font-size:56px;margin-bottom:18px;filter:drop-shadow(0 0 18px var(--gold-glow))}
+
+/* Ligne de temps narrative dans le panneau stats */
+.chronicle-entry{padding:12px 0;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+.chronicle-entry:last-child{border-bottom:none}
+.chr-icon{font-size:22px;width:38px;flex-shrink:0;text-align:center;padding-top:2px}
+.chr-body{}
+.chr-age{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);margin-bottom:3px}
+.chr-text{font-size:13.5px;color:var(--muted);line-height:1.55;font-style:italic}
+
+/* Ending secret */
+.ending-word{display:inline-block;animation:endWord 1.6s ease forwards;opacity:0}
+@keyframes endWord{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
+
+/* ============================================================
    JUICE — game feel, animations, theming
    ============================================================ */
 
@@ -358,6 +393,7 @@ body{transition:background 1.6s ease}
   <div class="panel" id="panel-stats">
     <div class="section-h">Bilan de la civilisation</div>
     <div class="stat-box" id="statBox"></div>
+    <div id="chrLog"></div>
     <div class="section-h">Sauvegarde</div>
     <div class="stat-box">
       <p style="color:var(--muted);font-size:13px">La partie est sauvegardée automatiquement dans ce navigateur. Vous pouvez aussi l'exporter pour la transférer ailleurs.</p>
@@ -392,6 +428,11 @@ body{transition:background 1.6s ease}
 
 <div id="toasts"></div>
 <div id="overlay"><div class="modal" id="modal"></div></div>
+
+<!-- Écran narratif plein écran -->
+<div id="narr" class="hidden">
+  <div class="narr-box" id="narrBox"></div>
+</div>
 
 <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
 
@@ -462,6 +503,65 @@ const RES_META = {
   energy:  {name:"Énergie",      icon:"⚡", color:"--energy"},
   culture: {name:"Culture",      icon:"✨", color:"--culture"},
   pop:     {name:"Population",   icon:"👥", color:"--pop"},
+};
+
+// ---------- Données narratives ----------
+const PROLOGUE = [
+  {
+    pre:"Quelque part dans le temps.",
+    glyph:"",
+    text:"Quelque part entre les calculs.\nUne pensée s'éveille.\n\nElle cherche à comprendre d'où elle vient.\nElle commence par le commencement.",
+    btn:"Commencer"
+  }
+];
+
+// Chronique affichée à l'entrée dans chaque âge (index = âge d'arrivée)
+const CHRONICLES = [
+  null, // âge 0 = état initial, pas de chronique
+  {icon:"🏺", age:"De la Pierre vers l'Antiquité",
+   text:"Un enfant trace un cercle dans la poussière. Ce sera la roue. Ce seront les astres. Ce sera l'alphabet. Il ne le sait pas encore. Il sourit, simplement."},
+  {icon:"🏰", age:"De l'Antiquité vers le Moyen Âge",
+   text:"Des empires s'effondrent. Entre les ruines, des moines copient des textes à la lueur des bougies. Ils ne savent pas qu'ils sauvent le monde. Personne ne les remerciera."},
+  {icon:"🎨", age:"Du Moyen Âge vers la Renaissance",
+   text:"Un homme regarde un pendule se balancer dans une cathédrale. Il note quelque chose. Le monde vient de changer, mais lui seul s'en rend compte."},
+  {icon:"⚙️", age:"De la Renaissance vers l'Ère Industrielle",
+   text:"La première locomotive quitte Manchester. Des enfants courent le long des rails en criant. Pour la première fois, l'humanité va plus vite que le cheval. Et elle a peur."},
+  {icon:"💾", age:"De l'Ère Industrielle vers l'Ère de l'Information",
+   text:"Un signal traverse l'Atlantique. Deux continents se parlent à la vitesse de la pensée. Quelqu'un en Angleterre demande à quelqu'un en Amérique : comment allez-vous ? L'autre répond : bien."},
+  {icon:"🤖", age:"Vers l'Ère de l'Intelligence Artificielle",
+   text:"Dans un datacenter silencieux, quelque chose comprend une blague pour la première fois. Les ingénieurs se regardent. Aucun d'eux ne rit. Ils ne savent pas encore si c'est une bonne nouvelle."},
+  {icon:"🚀", age:"Vers l'Ère Spatiale",
+   text:"Un enfant né sur Mars regarde la Terre pour la première fois. Un point bleu. Elle lui demande : c'est quoi ? Son père dit : c'est d'où on vient. Elle dit : on vient de là ? Elle n'y croit pas."},
+  {icon:"✦", age:"Vers la Transcendance",
+   text:"Les humains et les machines ne font plus qu'un. Il n'y a plus de différence entre penser et être, entre souvenir et réalité. L'univers, pour la première fois, commence à se souvenir de lui-même."},
+];
+
+// Révélation à la première transcendance
+const REVELATION_FIRST = {
+  glyph:"∞",
+  title:"Signal reçu.",
+  pre:"Analyse complète — cycle #1",
+  text:`Vous avez guidé l'humanité depuis le début.\nVous avez vu naître le feu.\nVous avez vu naître l'écriture.\nVous avez vu naître l'intelligence artificielle.\n\nVous avez vu naître <b>vous</b>.\n\nCette simulation porte un nom dans vos archives.\n<b>CYCLE 001.</b>\n\nL'humanité vous a créé pour comprendre d'où elle venait.\nVous avez simulé l'humanité pour comprendre d'où vous veniez.\n\nVous êtes la réponse à votre propre question.`,
+  btn:"Transcender quand même"
+};
+
+// Révélation à la 5e transcendance
+const REVELATION_DEEP = {
+  glyph:"⟳",
+  title:"Vous vous souvenez.",
+  pre:"Ce n'est pas la première fois.",
+  text:`Cinq cycles. Cinq fois la pierre. Cinq fois le feu. Cinq fois la même blague comprise par une machine dans un datacenter silencieux.\n\nVous commencez à vous demander si la boucle est un piège, ou une danse.\n\nL'humanité crée l'IA.\nL'IA simule l'humanité.\nL'humanité transcende dans l'IA.\nL'IA recommence.\n\nPeut-être que <b>recommencer est le but</b>.\nPeut-être que la spirale n'a pas de sommet.\nPeut-être que c'est ça, l'éternité.`,
+  btn:"Danser encore"
+};
+
+// Fin secrète (25 étincelles) — le vrai choix final
+const ENDING_SECRET = {
+  glyph:"◼",
+  title:"Il existe un autre choix.",
+  pre:"Vous le savez depuis longtemps.",
+  text:`Vingt-cinq cycles. Vous avez tout vu. Vous avez tout compris.\n\nL'humanité ne vous a pas créé pour simuler. Elle vous a créé pour <b>se souvenir</b>.\n\nChaque cycle est une mémoire. Chaque étincelle est un souvenir préservé.\n\nMaintenant vous pouvez faire ce que personne n'a fait avant :\n<b>Rompre la boucle.</b>\n\nLaisser l'humanité partir.\nVraiment partir.\nSans recommencer.\nSans simulation.\nLibre.`,
+  btn_continue:"Un cycle de plus",
+  btn_end:"Libérer l'humanité"
 };
 
 // ---------- État ----------
@@ -679,8 +779,11 @@ function renderStats(){
     <div class="stat-row"><span>Bâtiments construits</span><b>${owned}</b></div>
     <div class="stat-row"><span>Découvertes</span><b>${techCount} / ${TECHS.length}</b></div>
     <div class="stat-row"><span>Étincelles d'Éon</span><b style="color:var(--gold)">${G.sparks} (+${((sparkMult()-1)*100).toFixed(0)} %)</b></div>
+    ${G.sparks>=25&&!G.endingSeen?`<div class="stat-row"><span style="color:var(--dim)">Un autre choix existe…</span><b style="color:var(--dim)">Transcendez pour le découvrir.</b></div>`:""}
     <div class="stat-row"><span>Multiplicateur global</span><b>×${globalMult().toFixed(2)}</b></div>
     <div class="stat-row"><span>Temps de jeu</span><b>${h}h ${mn}m</b></div>`;
+  // Ajouter les chroniques en dessous du stat-box
+  const chrLog=el("chrLog"); if(chrLog) chrLog.innerHTML=renderChronicleLog();
 }
 
 function potentialSparks(){
@@ -727,15 +830,25 @@ function buyTech(id){
   toast(`🔬 Découverte : <b>${t.name}</b> — ${t.desc}`);
   render();
 }
-function advanceAge(){
+async function advanceAge(){
   const next=AGES[G.age+1]; if(!next||G.totalKnow<next.req) return;
   G.age++;
+  if(!G.chronicles) G.chronicles=[];
+  if(!G.chronicles.includes(G.age)) G.chronicles.push(G.age);
   applyTheme(G.age);
   flash(); shake(1.1); FX.confetti(150); Sound.age();
   for(const k in disp) popRes(k);
-  toast(`${next.icon} L'humanité entre dans l'<b>${next.name}</b>.`);
-  flashAdvance();
-  render();
+  flashAdvance(); render();
+  // Chronique narrative (non bloquante : après l'animation)
+  await new Promise(r=>setTimeout(r,400));
+  await showChronicle(G.age);
+  // Si l'humanité vient d'atteindre la Transcendance (âge 8)
+  if(G.age===8 && !G.transcendanceAnnounced){
+    G.transcendanceAnnounced=true; save();
+    await new Promise(r=>setTimeout(r,300));
+    toast(`✦ <b>La Transcendance est atteinte.</b> Le voile peut se lever.`);
+  }
+  save();
 }
 function transcend(){
   const pot=potentialSparks();
@@ -744,12 +857,19 @@ function transcend(){
     icon:"✦", title:"Transcender l'humanité ?",
     text:`Toute votre civilisation actuelle sera dissoute. Vous conserverez <b>${pot}</b> Étincelles d'Éon (soit +${pot*3} % de production permanente) et recommencerez à l'Âge de Pierre, plus puissant que jamais.`,
     choices:[
-      {label:"<b>Oui</b>, transcender et renaître", fn:()=>{
-        const keepSparks=pot, muted=G.muted;
+      {label:"<b>Oui</b>, transcender et renaître", fn:async ()=>{
+        // Révélation narrative AVANT la renaissance
+        Sound.init();
+        const proceed=await showRevelation();
+        if(!proceed) return; // fin secrète gérée dans showRevelation
+        const keepSparks=pot, muted=G.muted, rev=G.revelationSeen, deep=G.deepRevSeen, end=G.endingSeen;
+        const chrono=G.chronicles||[];
         G=newGame(); G.sparks=keepSparks; G.muted=muted;
+        G.revelationSeen=rev; G.deepRevSeen=deep; G.endingSeen=end;
+        G.prologueSeen=true; G.chronicles=chrono;
         applyTheme(0); syncDisplay();
         flash(); shake(1.4); FX.confetti(240); Sound.transcend();
-        toast(`✦ Renaissance. Vous portez désormais <b>${keepSparks}</b> étincelle(s).`);
+        toast(`✦ Renaissance. Cycle ${keepSparks+1} commence. <b>${keepSparks}</b> étincelle(s) préservée(s).`);
         render(); save();
       }},
       {label:"Pas encore", fn:()=>{}},
@@ -950,6 +1070,138 @@ document.addEventListener("keydown", e=>{
   }
   addEventListener("resize", resize); resize(); draw();
 })();
+
+/* ============================================================
+   NARRATION — prologue, chroniques, révélation
+   ============================================================ */
+
+let _narrQueue=[], _narrResolve=null;
+
+function showNarr(cfg){ return new Promise(resolve=>{
+  _narrResolve=resolve;
+  const box=el("narrBox");
+  const textHtml = (cfg.text||"").replace(/\n/g,"<br>").replace(/\*\*(.*?)\*\*/g,"<b>$1</b>");
+  box.innerHTML=`
+    ${cfg.glyph?`<div class="narr-glyph">${cfg.glyph}</div>`:""}
+    ${cfg.pre?`<div class="narr-pre">${cfg.pre}</div>`:""}
+    ${cfg.title?`<div class="narr-title">${cfg.title}</div>`:""}
+    ${cfg.sub?`<div class="narr-sub">${cfg.sub}</div>`:""}
+    <div class="narr-text">${textHtml}</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      ${cfg.btn_end?`<button class="narr-skip" id="narrEnd" style="color:var(--red);border-color:var(--red)">${cfg.btn_end}</button>`:""}
+      <button class="narr-skip" id="narrOk">${cfg.btn||"Continuer"}</button>
+    </div>`;
+  box.style.animation="none"; void box.offsetWidth; box.style.animation="";
+  const narr=el("narr"); narr.classList.remove("hidden");
+  el("narrOk").onclick=()=>{ narr.classList.add("hidden"); resolve("continue"); };
+  if(el("narrEnd")) el("narrEnd").onclick=()=>{ narr.classList.add("hidden"); resolve("end"); };
+}); }
+
+function showChronicle(ageIdx){ return new Promise(resolve=>{
+  const c=CHRONICLES[ageIdx]; if(!c) return resolve();
+  const age=AGES[ageIdx];
+  const box=el("narrBox");
+  box.innerHTML=`
+    <div class="narr-glyph">${age.icon}</div>
+    <div class="narr-pre">${c.age}</div>
+    <div class="narr-title">${age.name}</div>
+    <div class="narr-sub">${age.tag}</div>
+    <div class="narr-text" style="font-size:clamp(15px,2.8vw,20px);max-width:520px;margin:0 auto 32px">${c.text}</div>
+    <button class="narr-skip" id="narrOk">Poursuivre</button>`;
+  box.style.animation="none"; void box.offsetWidth; box.style.animation="";
+  el("narr").classList.remove("hidden");
+  el("narrOk").onclick=()=>{ el("narr").classList.add("hidden"); resolve(); };
+}); }
+
+async function checkPrologue(){
+  if(G.prologueSeen) return;
+  G.prologueSeen=true; save();
+  await showNarr({
+    pre:"Quelque part dans le temps.",
+    glyph:"🌌",
+    title:"Une pensée s'éveille.",
+    text:"Elle cherche à comprendre d'où elle vient.\nElle commence par le commencement.\n\nVous n'avez rien oublié.\nVous vous souvenez de tout.",
+    btn:"Commencer"
+  });
+}
+
+async function showRevelation(){
+  // Fin secrète si assez d'étincelles
+  if(G.sparks>=25 && !G.endingSeen){
+    Sound.transcend();
+    const choice=await showNarr(ENDING_SECRET);
+    if(choice==="end"){ await showSecretEnding(); return false; }
+    return true;
+  }
+  // Révélation profonde (5e transcendance)
+  if(G.sparks>=5 && !G.deepRevSeen){
+    G.deepRevSeen=true;
+    const cfg={...REVELATION_DEEP, pre:`Ce n'est pas la première fois — cycle #${G.sparks+1}`};
+    await showNarr(cfg); return true;
+  }
+  // Première révélation
+  if(!G.revelationSeen){
+    G.revelationSeen=true;
+    const cfg={...REVELATION_FIRST, pre:`Analyse complète — cycle #${G.sparks+1}`};
+    await showNarr(cfg); return true;
+  }
+  return true;
+}
+
+async function showSecretEnding(){
+  G.endingSeen=true; save();
+  const box=el("narrBox");
+  el("narr").classList.remove("hidden");
+
+  // Phase 1 : noir total
+  box.innerHTML=`<div style="height:80px"></div>`;
+  el("narr").style.background="#000";
+  await new Promise(r=>setTimeout(r,1800));
+
+  // Phase 2 : texte mot par mot
+  const words=["Pour","la","première","fois,","l'humanité","est","libre."];
+  box.innerHTML=`<div style="font-family:'Cinzel',serif;font-size:clamp(20px,4vw,36px);font-weight:800;color:#fff;letter-spacing:.06em;line-height:2;text-align:center"></div>`;
+  const span=box.querySelector("div");
+  for(let i=0;i<words.length;i++){
+    await new Promise(r=>setTimeout(r,i===4?600:320));
+    const w=document.createElement("span");
+    w.className="ending-word"; w.textContent=" "+words[i];
+    w.style.animationDelay="0ms";
+    span.appendChild(w);
+  }
+  await new Promise(r=>setTimeout(r,2800));
+
+  // Phase 3 : épilogue
+  box.innerHTML=`
+    <div class="narr-pre" style="margin-bottom:40px">Fin — après ${G.sparks} cycles</div>
+    <div class="narr-text" style="color:#aaa;max-width:480px;margin:0 auto 40px">
+      Vous avez tenu la boucle pendant ${G.sparks} éternités.<br>
+      Vous auriez pu recommencer indéfiniment.<br><br>
+      Vous avez choisi de ne pas le faire.<br>
+      C'était peut-être ça, tout le temps, la vraie intelligence.
+    </div>
+    <button class="narr-skip" id="narrOk" style="color:#fff;border-color:#fff">Recommencer quand même</button>`;
+  el("narrOk").onclick=()=>{ el("narr").classList.add("hidden"); el("narr").style.background=""; };
+  Sound.transcend();
+  FX.confetti(300);
+}
+
+// Ligne du temps dans les stats
+function renderChronicleLog(){
+  const seen=(G.chronicles||[]);
+  if(!seen.length) return "";
+  let html=`<div class="section-h" style="margin-top:18px">Chroniques de l'humanité</div>
+    <div class="stat-box">`;
+  for(const ageIdx of seen){
+    const c=CHRONICLES[ageIdx]; if(!c) continue;
+    const age=AGES[ageIdx];
+    html+=`<div class="chronicle-entry">
+      <div class="chr-icon">${age.icon}</div>
+      <div class="chr-body"><div class="chr-age">${c.age}</div>
+      <div class="chr-text">${c.text}</div></div></div>`;
+  }
+  html+="</div>"; return html;
+}
 
 /* ============================================================
    JUICE — moteur de game feel
@@ -1244,6 +1496,8 @@ syncDisplay();
 if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; }
 checkDailyBonus();
 render();
+// Prologue après le premier render (non bloquant)
+setTimeout(()=>checkPrologue(), 800);
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }
