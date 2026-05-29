@@ -686,6 +686,10 @@ body{transition:background 1.6s ease}
         <input type="range" id="volSlider" min="0" max="100" value="45">
         <span id="volVal">45%</span>
       </div>
+      <label class="audio-row" style="cursor:pointer">
+        <span>🎵 Musique d'ambiance</span>
+        <input type="checkbox" id="ambChk" checked>
+      </label>
     </div>
   </div>
 
@@ -2852,25 +2856,52 @@ const Sound=(()=>{
     src.connect(f); f.connect(g); g.connect(master); src.start(t); src.stop(t+dur+.02);
   }
   // ---- Ambiance cosmique : nappe sourde en boucle (très discrète) ----
-  let ambOn=false, ambNodes=[];
+  // ---- Fond musical hypnotique : nappe douce + arpège lent envoûtant ----
+  // Gamme pentatonique (toujours consonante) + écho façon réverbe → méditatif, jamais agressif.
+  let ambOn=false, ambNodes=[], ambGain=null, ambDelay=null, arpTimer=null, arpStep=0;
+  const SCALE=[220.0, 261.6, 293.7, 329.6, 392.0, 440.0, 523.3];  // A pentatonique majeure
   function ambient(start){
     if(!ctx) return;
     if(start && !ambOn){
       ambOn=true;
-      const g=ctx.createGain(); g.gain.value=0; g.connect(master);
-      g.gain.linearRampToValueAtTime(0.028, ctx.currentTime+4);   // très discret
-      // nappe AÉRÉE : accord doux et clair (pas de grave boueux) + passe-bas adouci
-      const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=900; lp.connect(g);
-      [220, 277.2, 329.6].forEach((f,i)=>{ const o=ctx.createOscillator(); o.type="sine";
-        o.frequency.value=f;
-        const og=ctx.createGain(); og.gain.value=i===0?0.6:0.32; o.connect(og); og.connect(lp);
-        const lfo=ctx.createOscillator(),lg=ctx.createGain();
-        lfo.frequency.value=0.05+i*0.02; lg.gain.value=0.6; lfo.connect(lg); lg.connect(o.frequency);
-        o.start(); lfo.start(); ambNodes.push(o,lfo); });
-      ambNodes.push(g,lp);
+      // bus d'ambiance avec écho doux (réverbe simplifiée)
+      ambGain=ctx.createGain(); ambGain.gain.value=0; ambGain.connect(master);
+      ambGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+5);  // fondu d'entrée lent
+      const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1600; lp.connect(ambGain);
+      ambDelay=ctx.createDelay(); ambDelay.delayTime.value=0.38;
+      const fb=ctx.createGain(); fb.gain.value=0.34; ambDelay.connect(fb); fb.connect(ambDelay); ambDelay.connect(lp);
+      ambNodes.push(ambGain,lp,ambDelay,fb);
+      // NAPPE : 3 sinus doux légèrement désaccordés (accord La mineur aérien)
+      [220,277.2,329.6].forEach((f,i)=>{ const o=ctx.createOscillator(); o.type="sine"; o.frequency.value=f;
+        const og=ctx.createGain(); og.gain.value=i===0?0.10:0.05; o.connect(og); og.connect(lp);
+        const lfo=ctx.createOscillator(),lg=ctx.createGain(); lfo.frequency.value=0.04+i*0.015; lg.gain.value=0.8;
+        lfo.connect(lg); lg.connect(o.frequency); o.start(); lfo.start(); ambNodes.push(o,lfo,og); });
+      // ARPÈGE : une note pincée toutes ~0.9 s, motif lent qui dérive (hypnotique)
+      arpStep=0;
+      arpTimer=setInterval(()=>{ if(!ambOn||!ctx) return;
+        // probabilité de jouer (laisse respirer), note choisie dans la gamme
+        if(Math.random()<0.82){
+          const f=SCALE[(arpStep + (Math.random()<0.3?2:0)) % SCALE.length] * (Math.random()<0.25?2:1);
+          pluck(f, ambDelay);
+        }
+        arpStep=(arpStep+ (Math.random()<0.5?1:2)) % SCALE.length;
+      }, 900);
     } else if(!start && ambOn){
-      ambOn=false; ambNodes.forEach(n=>{ try{ n.stop&&n.stop(); }catch(e){} }); ambNodes=[];
+      ambOn=false;
+      if(arpTimer){ clearInterval(arpTimer); arpTimer=null; }
+      if(ambGain) try{ ambGain.gain.linearRampToValueAtTime(0, ctx.currentTime+0.8); }catch(e){}
+      const dead=ambNodes.slice(); ambNodes=[];
+      setTimeout(()=>{ dead.forEach(n=>{ try{ n.stop&&n.stop(); }catch(e){} try{ n.disconnect&&n.disconnect(); }catch(e){} }); }, 900);
     }
+  }
+  // note "pincée" douce (triangle + enveloppe courte) envoyée dans l'écho
+  function pluck(freq,dest){
+    if(!ctx) return; const t=ctx.currentTime;
+    const o=ctx.createOscillator(); o.type="triangle"; o.frequency.value=freq;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.16,t+0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+    o.connect(g); g.connect(dest||master); o.start(t); o.stop(t+1.7);
   }
   function setVolume(v){ if(master) master.gain.value=v; }
   function setAmbient(on){ ambient(on); }
@@ -3298,14 +3329,21 @@ el("volSlider").oninput=(e)=>{ const v=(+e.target.value)/100;
   G.muted=(v===0); Sound.set(v>0);
   save();
 };
+// Musique d'ambiance on/off
+el("ambChk").onchange=(e)=>{ G.ambientOn=e.target.checked; Sound.init();
+  Sound.setAmbient(e.target.checked && !G.muted); save(); };
 // applique les préférences sauvegardées à l'UI
 function applyAudioPrefs(){
   const v=(G.volume!=null?G.volume:0.45);
   el("volSlider").value=Math.round(v*100); el("volVal").textContent=Math.round(v*100)+"%";
+  const chk=el("ambChk"); if(chk) chk.checked=(G.ambientOn!==false);
 }
 // Débloque/réveille l'audio à chaque geste (politique navigateur : le contexte peut rester suspendu).
 let _audioReady=false;
-function wakeAudio(){ Sound.init(); if(!_audioReady){ Sound.setVolume(G.volume!=null?G.volume:0.45); _audioReady=true; } }
+function wakeAudio(){ Sound.init();
+  if(!_audioReady){ Sound.setVolume(G.volume!=null?G.volume:0.45);
+    if(G.ambientOn!==false && !G.muted) Sound.setAmbient(true);   // lance la musique au 1er geste
+    _audioReady=true; } }
 addEventListener("pointerdown", wakeAudio);
 addEventListener("keydown", wakeAudio);
 addEventListener("touchstart", wakeAudio, {passive:true});
