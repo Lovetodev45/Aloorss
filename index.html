@@ -2209,13 +2209,19 @@ function toast(html, ms=4200){
 function doSpark(e){
   bumpCombo();
   const wh=el("worldHint"); if(wh && (G.clicks||0)>2){ wh.style.transition="opacity .8s"; wh.style.opacity="0"; }
-  // CRITS à paliers (variable reward — le sel de l'addiction)
-  //  Mega ×100 (~0.4%) · Hard ×25 (~2%) · Crit ×7 (~8%)
+  // CRITS À PALIERS QUI MONTENT AVEC LE COMBO (escalade ultra-satisfaisante).
+  // Plus le combo est haut, plus les crits sont fréquents ET plus les hauts paliers
+  // se débloquent. Hard crit dès combo ≥12, Mega crit dès combo ≥30.
+  const cb=combo; // combo courant (déjà incrémenté par bumpCombo)
+  const f=Math.min(1, cb/45);                 // facteur de montée 0→1
+  const pCrit = 0.06 + 0.34*f;                // 6% → 40% de crit
+  const pHard = cb>=12 ? 0.04 + 0.20*f : 0;   // débloqué à 12, jusqu'à ~24%
+  const pMega = cb>=30 ? 0.02 + 0.10*f : 0;   // débloqué à 30, jusqu'à ~12%
   const roll=Math.random();
-  let crit=0;                      // 0 = normal, 1 = crit, 2 = hard, 3 = mega
-  if(roll<0.004) crit=3;
-  else if(roll<0.024) crit=2;
-  else if(roll<0.10)  crit=1;
+  let crit=0;                                 // 0 normal · 1 crit · 2 hard · 3 mega
+  if(roll<pMega) crit=3;
+  else if(roll<pMega+pHard) crit=2;
+  else if(roll<pMega+pHard+pCrit) crit=1;
   const critMult=[1,7,25,100][crit];
   let v=clickValue()*comboMult()*critMult;
   G.res.know+=v; G.totalKnow+=v;
@@ -2413,7 +2419,21 @@ function importSave(file){
 }
 
 // ---------- Liaison UI ----------
-el("sparkBtn").addEventListener("click", doSpark);
+// MAINTENIR pour spammer l'éveil (souris, tactile, ou barre espace).
+// Cadence rapide (~14/s) → combo qui grimpe tout seul, crits qui montent.
+let _holding=false, _holdTimer=null;
+function startHold(){ if(_holding) return; _holding=true; doSpark(); _holdTimer=setInterval(()=>{ if(_holding) doSpark(); }, 70); }
+function stopHold(){ _holding=false; if(_holdTimer){ clearInterval(_holdTimer); _holdTimer=null; } }
+(function(){
+  const b=el("sparkBtn");
+  // pointer = souris + tactile unifiés
+  b.addEventListener("pointerdown", e=>{ e.preventDefault(); startHold(); });
+  addEventListener("pointerup", stopHold);
+  addEventListener("pointercancel", stopHold);
+  b.addEventListener("pointerleave", stopHold);
+  // évite le menu contextuel / sélection sur appui long mobile
+  b.addEventListener("contextmenu", e=>e.preventDefault());
+})();
 // (Toucher la planète elle-même éveille l'esprit — géré par World.onWorldClick au démarrage)
 el("shareBtn").addEventListener("click", doShare);
 el("installBtn").addEventListener("click", async ()=>{
@@ -2473,10 +2493,15 @@ el("restartBtn").onclick=confirmRestart;
 // raccourci clavier : barre espace = éveiller
 document.addEventListener("keydown", e=>{
   if(e.code==="Space" && el("overlay").classList.contains("show")===false){
-    e.preventDefault(); doSpark();
+    e.preventDefault();
+    if(!e.repeat) startHold();   // maintenir espace = spam fluide (on ignore l'auto-répétition OS)
   }
   secretKey(e);
 });
+document.addEventListener("keyup", e=>{ if(e.code==="Space") stopHold(); });
+// sécurité : si l'onglet perd le focus, on arrête le spam
+addEventListener("blur", stopHold);
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden) stopHold(); });
 
 // ---------- SECRET : la séquence cachée révèle l'épreuve « Le Vide » ----------
 // Code : Z O N (les lettres de ÆON sans le Æ) — découvrable via indices dans le lore.
@@ -2926,12 +2951,14 @@ function bumpCombo(){
   const c=el("combo");
   if(combo>=3){
     c.classList.add("show");
-    const tier=combo>=40?"🔥🔥🔥":combo>=20?"🔥🔥":"🔥";
-    c.innerHTML=`${tier} Combo ×${combo}`;
+    const tier=combo>=30?"🔥🔥🔥":combo>=12?"🔥🔥":"🔥";
+    // indice du palier de crit débloqué par le combo
+    const unlock = combo>=30?" · MEGA prêt ★" : combo>=12?" · HARD prêt ✦✦" : combo>=6?" · crits +" : "";
+    c.innerHTML=`${tier} Combo ×${combo}<span style="font-size:.7em;opacity:.8">${unlock}</span>`;
     c.classList.remove("bump"); void c.offsetWidth; c.classList.add("bump");
   }
   clearTimeout(comboTimer);
-  comboTimer=setTimeout(()=>{ combo=0; c.classList.remove("show"); }, 1400);
+  comboTimer=setTimeout(()=>{ combo=0; c.classList.remove("show"); }, 1500);
 }
 function comboMult(){ return 1 + Math.min(combo,50)*0.04; } // jusqu'à ×3 en martelant
 
