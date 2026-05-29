@@ -583,10 +583,6 @@ body{transition:background 1.6s ease}
         <input type="range" id="volSlider" min="0" max="100" value="45">
         <span id="volVal">45%</span>
       </div>
-      <label class="audio-row" style="cursor:pointer">
-        <span>🌌 Ambiance de fond</span>
-        <input type="checkbox" id="ambChk" checked>
-      </label>
     </div>
   </div>
 
@@ -2670,19 +2666,13 @@ el("volSlider").oninput=(e)=>{ const v=(+e.target.value)/100;
   G.muted=(v===0); Sound.set(v>0);
   save();
 };
-// Ambiance de fond on/off
-el("ambChk").onchange=(e)=>{ G.ambientOn=e.target.checked;
-  Sound.init(); Sound.setAmbient(e.target.checked); save();
-};
 // applique les préférences sauvegardées à l'UI
 function applyAudioPrefs(){
   const v=(G.volume!=null?G.volume:0.45);
   el("volSlider").value=Math.round(v*100); el("volVal").textContent=Math.round(v*100)+"%";
-  el("ambChk").checked=(G.ambientOn!==false);
 }
-// Débloque l'audio au premier geste (politique navigateur) + lance l'ambiance si activée
-addEventListener("pointerdown", ()=>{ Sound.init(); Sound.setVolume(G.volume!=null?G.volume:0.45);
-  if(G.ambientOn!==false && !G.muted) Sound.ambient(true); }, {once:true});
+// Débloque l'audio au premier geste (politique navigateur). Pas d'ambiance de fond.
+addEventListener("pointerdown", ()=>{ Sound.init(); Sound.setVolume(G.volume!=null?G.volume:0.45); }, {once:true});
 
 // ============================================================
 //   PANNEAU ADMIN / TEST — pour valider le jeu de bout en bout
