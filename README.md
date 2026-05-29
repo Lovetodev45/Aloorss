@@ -32,7 +32,13 @@ aucune clé d'API, 100 % hors-ligne. Aucune donnée ne quitte le navigateur.
 ## Déploiement
 
 Le site est publié via **GitHub Actions** vers **GitHub Pages** à chaque push
-sur les branches de travail. Pour que la publication fonctionne :
+sur la branche `claude/wealth-building-feature-LiaF4` — c'est **la seule branche
+autorisée à publier** (réglage *Settings → Environments → github-pages*).
+
+👉 **Pour mettre le jeu à jour : pousser directement sur
+`claude/wealth-building-feature-LiaF4`.** Un push = un déploiement, sans PR.
+
+Pour que la publication fonctionne :
 
 1. Dépôt **public** (Pages gratuit ne sert pas les dépôts privés)
 2. **Settings → Pages → Source : GitHub Actions**
