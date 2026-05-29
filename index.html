@@ -1073,19 +1073,18 @@ function loop(now){
   // garde-fou : aucune ressource ne peut être négative ou NaN
   sanitizeResources();
 
-  // épreuve en cours : vérifie la réussite à chaque tick
-  if(G.challenge) checkChallenge();
-  checkMissions();
-
-  // évènement aléatoire toutes ~75-140s (pas pendant une épreuve : on garde le contrôle)
-  if(!G.challenge && Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
-    triggerEvent(); G.lastEvent=Date.now();
-  }
-
-  updateNumbers();
-  feedOrganism();
-  Golden.tick();
-  if(now-lastRender>120){ render(); lastRender=now; }
+  // tout ce qui suit est protégé : une erreur ne doit jamais figer le jeu
+  try{
+    if(G.challenge) checkChallenge();
+    checkMissions();
+    if(!G.challenge && Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
+      triggerEvent(); G.lastEvent=Date.now();
+    }
+    updateNumbers();
+    feedOrganism();
+    Golden.tick();
+    if(now-lastRender>120){ render(); lastRender=now; }
+  }catch(e){ console.error("ÆON loop:", e); }
   requestAnimationFrame(loop);
 }
 
@@ -1261,6 +1260,7 @@ function renderMissions(){
   if(sig===_missSig) return; _missSig=sig;
   let html=`<div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:1px">✦ Missions · ${G.missionsDone||0} accomplies</div>`;
   for(const m of G.missions){
+    if(!m||!m.reward) continue;
     const p=Math.round(missionProgress(m)*100);
     const rew = m.reward[0]==="know" ? "🧠+" : "×"+m.reward[1];
     html+=`<div class="mission"><span class="mtxt">${m.desc}</span>
@@ -1743,57 +1743,62 @@ function spend(res,sec){ const c=Math.max(0,rateOf(res)*sec); G.res[res]=Math.ma
 //   MISSIONS — objectifs courts qui se renouvellent en continu.
 //   Le moteur anti-ennui : toujours 3 buts atteignables → dopamine régulière.
 // ============================================================
-// Chaque modèle génère une mission ajustée à l'état actuel (scale = défi proportionnel).
-const MISSION_TEMPLATES=[
-  {id:"click",  gen:()=>{ const n=15+Math.floor(Math.random()*20);
-    return {desc:`Éveiller l'esprit ${n} fois`, target:n, get:()=>missionClicks, reward:["boost",2,15]}; }},
-  {id:"build",  gen:()=>{ const n=totalBuildings()+3+Math.floor(Math.random()*4);
-    return {desc:`Posséder ${n} bâtiments au total`, target:n, get:()=>totalBuildings(), reward:["know",30]}; }},
-  {id:"know",   gen:()=>{ const cur=G.totalKnow, n=Math.ceil((cur*1.5+rateOf("know")*60+50));
-    return {desc:`Atteindre ${fmt(n)} de connaissance totale`, target:n, get:()=>G.totalKnow, reward:["boost",2.5,20]}; }},
-  {id:"energy", gen:()=>{ const n=Math.ceil(G.res.energy+rateOf("energy")*45+20);
-    return {desc:`Accumuler ${fmt(n)} d'énergie`, target:n, get:()=>G.res.energy, reward:["know",25]}; }},
-  {id:"culture",gen:()=>{ const n=Math.ceil(G.res.culture+rateOf("culture")*45+15);
-    return {desc:`Accumuler ${fmt(n)} de culture`, target:n, get:()=>G.res.culture, reward:["boost",2,15]}; }},
-  {id:"tech",   gen:()=>{ const n=Object.keys(G.techs).length+1;
-    return {desc:`Débloquer ${n} découverte(s) au total`, target:n, get:()=>Object.keys(G.techs).length, reward:["know",60]}; }},
-];
+// IMPORTANT : une mission ne stocke QUE des données sérialisables (tid, desc, target,
+// reward, _startClicks). La "valeur courante" se calcule via getMissionValue(tid) —
+// jamais une fonction dans l'objet (sinon JSON.stringify la perd → crash au reload).
+const MISSION_DEFS={
+  click:  {reward:["boost",2,15],   make:()=>{ const n=15+Math.floor(Math.random()*20); return {desc:`Éveiller l'esprit ${n} fois`, target:n}; }},
+  build:  {reward:["know",30],      make:()=>{ const n=totalBuildings()+3+Math.floor(Math.random()*4); return {desc:`Posséder ${n} bâtiments au total`, target:n}; }},
+  know:   {reward:["boost",2.5,20], make:()=>{ const n=Math.ceil(G.totalKnow*1.5+rateOf("know")*60+50); return {desc:`Atteindre ${fmt(n)} de connaissance totale`, target:n}; }},
+  energy: {reward:["know",25],      make:()=>{ const n=Math.ceil(G.res.energy+rateOf("energy")*45+20); return {desc:`Accumuler ${fmt(n)} d'énergie`, target:n}; }},
+  culture:{reward:["boost",2,15],   make:()=>{ const n=Math.ceil(G.res.culture+rateOf("culture")*45+15); return {desc:`Accumuler ${fmt(n)} de culture`, target:n}; }},
+  tech:   {reward:["know",60],      make:()=>{ const n=Object.keys(G.techs).length+1; return {desc:`Débloquer ${n} découverte(s) au total`, target:n}; }},
+};
+const MISSION_IDS=Object.keys(MISSION_DEFS);
 let missionClicks=0;  // clics depuis le début (pour les missions "éveiller N fois")
+function getMissionValue(tid){
+  switch(tid){
+    case "click":   return missionClicks;
+    case "build":   return totalBuildings();
+    case "know":    return G.totalKnow;
+    case "energy":  return G.res.energy;
+    case "culture": return G.res.culture;
+    case "tech":    return Object.keys(G.techs).length;
+  }
+  return 0;
+}
 function rollMission(){
-  const t=MISSION_TEMPLATES[Math.floor(Math.random()*MISSION_TEMPLATES.length)];
-  const m=t.gen(); m.tid=t.id; m.base=m.get();   // mémorise le point de départ pour les missions cumulatives
+  const tid=MISSION_IDS[Math.floor(Math.random()*MISSION_IDS.length)];
+  const def=MISSION_DEFS[tid];
+  const m=def.make(); m.tid=tid; m.reward=def.reward;
+  if(tid==="click") m._startClicks=missionClicks;
   return m;
 }
 function initMissions(){
   if(!G.missions || !G.missions.length){ G.missions=[rollMission(),rollMission(),rollMission()]; }
 }
 function missionProgress(m){
-  // progrès relatif au point de départ pour les cumulatifs (clics/bâtiments/techs/connaissance)
-  const cur=m.get();
+  if(!m||!m.tid) return 0;
   if(m.tid==="click"){ const p=missionClicks-(m._startClicks||0); return Math.min(1,p/m.target); }
-  return Math.min(1, cur/m.target);
+  return Math.min(1, getMissionValue(m.tid)/m.target);
 }
 function checkMissions(){
   if(!G.missions) return;
   for(let i=0;i<G.missions.length;i++){
-    const m=G.missions[i]; if(!m) continue;
-    let done=false;
-    if(m.tid==="click") done=(missionClicks-(m._startClicks||0))>=m.target;
-    else done=m.get()>=m.target;
+    const m=G.missions[i]; if(!m||!m.tid) continue;
+    const done = m.tid==="click" ? (missionClicks-(m._startClicks||0))>=m.target
+                                  : getMissionValue(m.tid)>=m.target;
     if(done) completeMission(i);
   }
 }
 function completeMission(i){
   const m=G.missions[i]; if(!m) return;
   G.missionsDone=(G.missionsDone||0)+1;
-  // récompense
-  const r=m.reward;
+  const r=m.reward||["know",20];
   if(r[0]==="know"){ const g=grant("know",r[1]); toast(`✔ Mission accomplie : <b>+${fmt(g)}</b> 🧠`); }
   else if(r[0]==="boost"){ boost(r[1],r[2]); toast(`✔ Mission accomplie : <b>×${r[1]}</b> ${r[2]} s !`); }
   Sound.achieve(); FX.confetti(40);
-  // remplace par une nouvelle mission
-  const nm=rollMission(); if(nm.tid==="click") nm._startClicks=missionClicks;
-  G.missions[i]=nm;
+  G.missions[i]=rollMission();   // remplace par une nouvelle mission
   render(); save();
 }
 
@@ -2026,6 +2031,8 @@ function load(){
     G=Object.assign(newGame(), d);
     G.res=Object.assign({know:0,energy:0,culture:0,pop:0}, d.res||{});
     G.buildings=d.buildings||{}; G.techs=d.techs||{};
+    // migration : purge d'anciennes missions invalides (fonctions perdues au JSON)
+    if(G.missions && !G.missions.every(m=>m&&m.tid&&m.reward)) G.missions=null;
     sanitizeResources(); // répare une sauvegarde corrompue (valeurs négatives héritées)
     // Temps écoulé depuis la dernière sauvegarde — TOUJOURS crédité (même 1 s),
     // pour qu'un simple rechargement ne fasse jamais "perdre" de ressources.
@@ -2708,22 +2715,22 @@ if(typeof window.World==="undefined"){
     transcendBurst(){}, resize(){} };
 }
 
-// ---------- Démarrage ----------
-load();
-sanitizeResources();
-applyTheme(G.age);
-syncDisplay();
-if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; }
-initMissions();
-checkDailyBonus();
-render();
-Admin.init();
-// Prologue après le premier render (non bloquant)
-setTimeout(()=>checkPrologue(), 800);
+// ---------- Démarrage (blindé : une erreur ne doit jamais tuer la boucle ni l'admin) ----------
+function safe(label, fn){ try{ fn(); }catch(e){ console.error("ÆON startup ["+label+"]:", e); } }
+safe("load", load);
+safe("sanitize", sanitizeResources);
+safe("theme", ()=>applyTheme(G.age));
+safe("syncDisplay", syncDisplay);
+safe("mute", ()=>{ if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; } });
+safe("missions", initMissions);
+safe("daily", checkDailyBonus);
+safe("render", render);
+safe("admin", ()=>Admin.init());
+setTimeout(()=>{ try{ checkPrologue(); }catch(e){} }, 800);
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }
-requestAnimationFrame(loop);
+requestAnimationFrame(loop);  // la boucle démarre TOUJOURS, quoi qu'il arrive au-dessus
 // Démarrage du monde 3D
 if(World.init()){
   World.setAge(G.age, true);
