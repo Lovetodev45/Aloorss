@@ -693,9 +693,9 @@ body{transition:background 1.6s ease}
   </div>
 
   <div class="panel" id="panel-fresco">
-    <div class="section-h">🖋️ La Chronique de votre civilisation</div>
+    <div class="section-h">🌌 L'Arbre de votre civilisation</div>
     <p style="color:var(--muted);font-size:12.5px;margin-bottom:10px;line-height:1.5">
-      Une fresque vivante qui se dessine selon votre partie : chaque bâtiment y grave une vignette, chaque découverte une ligne, et la teinte évolue avec les âges.</p>
+      Une fractale unique, née de VOS choix : elle pousse du cœur âge par âge. Les doctrines la tordent, les héritages la sculptent (Harmonie → mandala, Curiosité → foisonnement, Ambition → branches élancées, Sagesse → halo doré). <b>Glissez pour déplacer · molette/pince pour zoomer · double-clic pour recentrer.</b></p>
     <canvas id="palim"></canvas>
     <div class="btn-row" style="margin-top:10px">
       <button class="ghost" id="frescoExport">⬇ Exporter la fresque (image)</button>
@@ -1723,10 +1723,17 @@ const _INK_BY_AGE=[
 function syncPalimpseste(){
   if(!(window.Palim&&Palim.isActive())) return;
   if(!_frescoVisible()) return;   // ne travaille que si l'onglet Civilisation est ouvert
+  // doctrines choisies (pour orienter les fourches de la fractale)
+  const doctrines={};
+  if(typeof TECHS!=="undefined") for(const t of TECHS){ if(t.group && G.techs[t.id]) doctrines[t.group]=t.id; }
   Palim.sync({
     buildings:G.buildings,
     techs:Object.keys(G.techs).length,
     age:G.age,
+    legacies:G.legacies||{},
+    doctrines,
+    res:{know:G.totalKnow, energy:G.res.energy, culture:G.res.culture, pop:G.res.pop},
+    sparks:G.sparks||0,
     ink:_INK_BY_AGE[Math.min(G.age,_INK_BY_AGE.length-1)],
   });
 }

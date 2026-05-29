@@ -1,215 +1,256 @@
 /* ============================================================
-   ÆON — LE PALIMPSESTE VIVANT
-   Une fresque qui se dessine selon TA partie : chaque bâtiment
-   devient une vignette enluminée, chaque découverte une ligne
-   calligraphiée, l'encre coule à chaque éveil. Canvas 2D pur.
-   Couches bufferisées (parchemin statique + fresque redessinée
-   seulement quand l'état change + gouttes animées throttlées).
+   ÆON — L'ARBRE-MANDALA FRACTAL DE LA CIVILISATION
+   Une fractale générée par TES choix : elle pousse du centre
+   (la première étincelle) vers l'extérieur, âge par âge. Les
+   doctrines tordent les fourches, les héritages sculptent la
+   forme, les bâtiments deviennent des bourgeons. Auto-similaire,
+   unique à chaque partie. Zoom/déplacement. Canvas 2D pur.
+
+   Perf : la fractale est générée 1× dans un buffer hors-écran
+   quand l'état change ; le zoom/déplacement ne fait que
+   transformer ce buffer. Animation seulement onglet ouvert.
    Expose window.Palim.
    ============================================================ */
 (function(){
 "use strict";
 
 let cv, ctx, W=0, H=0, dpr=1, ok=false, raf=null, hidden=false;
-let parchment=null;            // fond statique
-let fresco=null, fctx=null;    // fresque (vignettes+texte+nervures) — redessinée à l'événement
-let drops=[];                  // gouttes vivantes (clic)
-let lastFrame=0, shimmer=0;
-let inkColor={r:201,g:164,b:74};
-let lastSig="";                // signature d'état (pour ne redessiner que si ça change)
+let buffer=null, bctx=null, BS=0;      // buffer carré hors-écran (la fractale dessinée)
+let lastSig="", state=null;
+let rot=0, lastFrame=0, glow=0;
+// caméra (zoom / déplacement, pour "jouer avec")
+let zoom=1, zoomT=1, panX=0, panY=0, drag=false, lx=0, ly=0, pinchD0=0, pinch0=1;
 
-function rnd(a,b){ return a+Math.random()*(b-a); }
-// PRNG déterministe à partir d'une chaîne → positions stables (même fresque au reload)
-function seed(str){ let h=2166136261; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return ()=>{ h+=0x6D2B79F5; let t=h; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+function lerp(a,b,t){return a+(b-a)*t;}
+// PRNG déterministe d'après une graine de chaîne
+function rng(strSeed){ let h=2166136261; const s=String(strSeed);
+  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return ()=>{ h+=0x6D2B79F5; let t=h; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+function hex(c){ return `rgb(${c.r|0},${c.g|0},${c.b|0})`; }
+function mix(a,b,t){ return {r:lerp(a.r,b.r,t),g:lerp(a.g,b.g,t),b:lerp(a.b,b.b,t)}; }
 
-// ---------- INIT ----------
+// palette par âge (cœur → extrémités)
+const AGE_COL=[
+  {r:200,g:120,b:70},{r:210,g:170,b:80},{r:200,g:140,b:95},{r:120,g:200,b:170},
+  {r:220,g:170,b:90},{r:110,g:190,b:240},{r:185,g:130,b:245},{r:130,g:170,b:255},{r:245,g:225,b:165}
+];
+
 function init(){
   cv=document.getElementById("palim"); if(!cv) return false;
   ctx=cv.getContext("2d"); if(!ctx) return false;
-  resize();
-  addEventListener("resize", debounce(()=>{ resize(); lastSig=""; redrawIfNeeded(true); }, 220));
-  document.addEventListener("visibilitychange", ()=>{ hidden=document.hidden; if(!hidden) tick(); });
-  ok=true;
-  compose();           // affiche le parchemin tout de suite
+  sizeCanvas();
+  bindInput();
+  addEventListener("resize", debounce(()=>{ sizeCanvas(); lastSig=""; regen(); }, 220));
+  document.addEventListener("visibilitychange", ()=>{ hidden=document.hidden; if(!hidden) loop(); });
+  ok=true; loop();
   return true;
 }
 function debounce(fn,ms){ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
-function resize(){
+function sizeCanvas(){
   dpr=Math.min(devicePixelRatio||1, 2);
-  // dimensions = la boîte CSS du canvas (il vit dans le panneau, plus en plein écran)
   const r=cv.getBoundingClientRect();
-  W=Math.max(280, Math.floor(r.width||cv.clientWidth||640));
-  H=Math.max(280, Math.floor(r.height||cv.clientHeight||480));
+  W=Math.max(280,Math.floor(r.width||cv.clientWidth||640));
+  H=Math.max(280,Math.floor(r.height||cv.clientHeight||480));
   cv.width=Math.floor(W*dpr); cv.height=Math.floor(H*dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  buildParchment();
-  fresco=document.createElement("canvas"); fresco.width=W; fresco.height=H;
-  fctx=fresco.getContext("2d");
-}
-
-// ---------- Parchemin (visible, chaud) ----------
-function buildParchment(){
-  parchment=document.createElement("canvas"); parchment.width=W; parchment.height=H;
-  const p=parchment.getContext("2d");
-  // parchemin clair et chaud (c'est désormais le sujet de l'onglet, pas un fond)
-  const g=p.createRadialGradient(W*0.5,H*0.4,Math.min(W,H)*0.05, W*0.5,H*0.55,Math.max(W,H)*0.85);
-  g.addColorStop(0,"#6b5a3a"); g.addColorStop(0.5,"#4a3d26"); g.addColorStop(1,"#2a2114");
-  p.fillStyle=g; p.fillRect(0,0,W,H);
-  const n=Math.floor(W*H/1400);
-  for(let i=0;i<n;i++){ p.fillStyle=`rgba(235,215,165,${Math.random()*0.08})`; p.fillRect(Math.random()*W,Math.random()*H,1,1); }
-  p.strokeStyle="rgba(190,165,115,0.06)"; p.lineWidth=1;
-  for(let i=0;i<30;i++){ p.beginPath(); let x=Math.random()*W,y=Math.random()*H; p.moveTo(x,y);
-    for(let k=0;k<5;k++){ x+=rnd(-70,70); y+=rnd(-46,46); p.lineTo(x,y); } p.stroke(); }
-  for(let i=0;i<5;i++){ const x=rnd(W*0.15,W*0.85),y=rnd(H*0.2,H*0.8),r=rnd(50,130);
-    const tg=p.createRadialGradient(x,y,r*0.4,x,y,r); tg.addColorStop(0,"rgba(90,70,40,0.12)"); tg.addColorStop(1,"rgba(90,70,40,0)");
-    p.fillStyle=tg; p.beginPath(); p.arc(x,y,r,0,7); p.fill(); }
-  // cadre doré enluminé
-  const m=Math.min(W,H)*0.05;
-  p.strokeStyle="rgba(201,164,74,0.30)"; p.lineWidth=2; p.strokeRect(m,m,W-2*m,H-2*m);
-  p.strokeStyle="rgba(201,164,74,0.15)"; p.lineWidth=1; p.strokeRect(m+6,m+6,W-2*m-12,H-2*m-12);
-  const vg=p.createRadialGradient(W*0.5,H*0.5,Math.min(W,H)*0.4, W*0.5,H*0.5,Math.max(W,H)*0.72);
-  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.45)");
-  p.fillStyle=vg; p.fillRect(0,0,W,H);
+  // buffer carré (assez grand pour zoomer sans flou)
+  BS=Math.floor(Math.min(1400, Math.max(W,H)*1.6));
+  buffer=document.createElement("canvas"); buffer.width=BS; buffer.height=BS;
+  bctx=buffer.getContext("2d");
 }
 
 // ============================================================
-//  La FRESQUE — dessinée selon l'état du jeu (vignettes + texte)
+//  GÉNÉRATION DE LA FRACTALE (récursive, bornée par budget)
 // ============================================================
-let _state={buildings:{}, techs:0, age:0, ink:inkColor};
-// appelée par le jeu (render) : ne redessine que si l'état visuel a changé
-function sync(state){
-  if(!ok) return;
-  _state=state||_state;
-  if(state&&state.ink) inkColor=state.ink;
-  redrawIfNeeded(false);
-}
-function stateSig(){
-  const b=_state.buildings||{};
-  let s=_state.age+"|"+(_state.techs||0)+"|";
-  for(const k in b) s+=k+b[k]+",";
-  return s;
-}
-function redrawIfNeeded(force){
-  const sig=stateSig();
-  if(!force && sig===lastSig) return;
-  lastSig=sig;
-  drawFresco();
-  if(!raf) tick();   // recompose une fois
-}
+function regen(){
+  if(!bctx) return;
+  const s=state||{};
+  bctx.clearRect(0,0,BS,BS);
+  // fond cosmique très sombre du buffer
+  const bg=bctx.createRadialGradient(BS/2,BS/2,0,BS/2,BS/2,BS/2);
+  bg.addColorStop(0,"#0a0c18"); bg.addColorStop(1,"#04050b");
+  bctx.fillStyle=bg; bctx.fillRect(0,0,BS,BS);
 
-// Glyphes/formes par type de bâtiment (silhouette enluminée simple)
-function vignetteShape(fc,x,y,r,res,sd){
-  // couleur selon ressource
-  const col = res==="know"? "#cdb56a" : res==="energy"? "#e0a24a" : res==="culture"? "#d6a0d0" : "#a8c4ff";
-  fc.save(); fc.translate(x,y);
-  fc.strokeStyle=col; fc.fillStyle=col; fc.lineWidth=1.4; fc.globalAlpha=0.85;
-  // halo
-  fc.globalAlpha=0.12; fc.beginPath(); fc.arc(0,0,r*1.6,0,7); fc.fill(); fc.globalAlpha=0.9;
-  // petite "construction" : tours/toits stylisés, variés par seed
-  const t=Math.floor(sd()*3);
-  fc.beginPath();
-  if(t===0){ // tours
-    for(let i=-1;i<=1;i++){ const h=r*(0.8+sd()*0.8); fc.rect(i*r*0.6-r*0.18,-h, r*0.36, h); }
-    fc.fill();
-  } else if(t===1){ // dôme/temple
-    fc.moveTo(-r,0); fc.lineTo(r,0); fc.lineTo(r*0.6,-r*0.7); fc.lineTo(0,-r*1.1); fc.lineTo(-r*0.6,-r*0.7); fc.closePath(); fc.fill();
-  } else { // toits pointus (cité)
-    for(let i=-1;i<=1;i++){ fc.moveTo(i*r*0.7-r*0.3,0); fc.lineTo(i*r*0.7,-r*0.9); fc.lineTo(i*r*0.7+r*0.3,0); }
-    fc.fill();
+  const age=Math.max(0,Math.min(8, s.age||0));
+  const leg=s.legacies||{};
+  const doc=s.doctrines||{};
+  const buildings=s.buildings||{};
+  const techs=s.techs||0;
+
+  // --- paramètres FRACTALS dérivés des choix ---
+  const lc=(id)=>leg[id]||0;                          // niveau d'un héritage
+  const curiosite=lc("curiosite"), ambition=lc("ambition"),
+        harmonie=lc("harmonie"), sagesse=lc("sagesse");
+  // nb de branches par fourche : Curiosité densifie (2→4)
+  const branches=2+Math.min(2, Math.round(curiosite/3));
+  // symétrie : Harmonie crée un mandala (répétitions radiales)
+  const symmetry=harmonie>=1 ? Math.min(8, 2+harmonie) : 1;
+  // longueur des branches : Ambition allonge
+  const lenBase=BS*0.085*(1+ambition*0.10);
+  // profondeur = âge atteint (+1), bornée
+  const depth=Math.min(9, age+2);
+  // angle d'ouverture, influencé par doctrines
+  let spread=0.62;
+  // chaque doctrine "penche" la croissance
+  let bias=0;
+  if(doc.doctrine_anc==="chasse") bias+=0.18; else if(doc.doctrine_anc==="cueillette") bias-=0.18;
+  if(doc.doctrine_med==="foi") spread*=1.25; else if(doc.doctrine_med==="raison") spread*=0.8;
+  if(doc.doctrine_ind==="capital") bias+=0.12; else if(doc.doctrine_ind==="ouvrier") spread*=1.15;
+  if(doc.doctrine_ia==="fusion_ia") spread*=0.85; else if(doc.doctrine_ia==="servir_ia") branchesBoost();
+  function branchesBoost(){}
+
+  // bourgeons : compteur de bâtiments par ressource (couleur des extrémités)
+  const resCount={know:0,energy:0,culture:0,pop:0};
+  for(const id in buildings){ const res=(window.__BRES&&window.__BRES[id])||"know"; resCount[res]+=buildings[id]||0; }
+  const RESC={know:{r:156,g:195,b:255},energy:{r:224,g:162,b:74},culture:{r:214,g:160,b:208},pop:{r:168,g:196,b:255}};
+
+  // budget de branches total (perf) — généreux mais borné
+  let budget=2600;
+  const cx=BS/2, cy=BS/2;
+  const baseSeed="aeon|"+age+"|"+JSON.stringify(leg)+"|"+JSON.stringify(doc)+"|"+techs;
+
+  // halo de Sagesse (filaments lumineux derrière l'arbre)
+  if(sagesse>0){
+    bctx.globalCompositeOperation="lighter";
+    const hg=bctx.createRadialGradient(cx,cy,0,cx,cy,BS*0.5);
+    hg.addColorStop(0,`rgba(245,225,165,${0.04+sagesse*0.015})`); hg.addColorStop(1,"rgba(0,0,0,0)");
+    bctx.fillStyle=hg; bctx.fillRect(0,0,BS,BS);
+    bctx.globalCompositeOperation="source-over";
   }
-  // contour doré
-  fc.globalAlpha=0.5; fc.strokeStyle="#f4e6c0"; fc.beginPath(); fc.arc(0,0,r*1.6,0,7); fc.stroke();
-  fc.restore();
-}
 
-function drawFresco(){
-  if(!fctx) return;
-  fctx.clearRect(0,0,W,H);
-  const b=_state.buildings||{};
-  const cx=W*0.5, cy=H*0.5;
-  const ringMax=Math.min(W,H)*0.40;
-  // chaque bâtiment possédé = des vignettes disposées en spirale déterministe autour du centre
-  let idx=0, total=0;
-  for(const k in b) total+=Math.min(b[k],12);
-  const sd=seed("aeon-fresco");
-  // nervures d'énergie : relient le centre aux vignettes (dessinées d'abord, en dessous)
-  const points=[];
-  for(const id in b){
-    const count=Math.min(b[id],12);
-    const res=(window.__BRES&&window.__BRES[id])||"know";
-    for(let i=0;i<count;i++){
-      const a=idx*2.399963; // angle d'or
-      const rad=ringMax*Math.sqrt((idx+1)/Math.max(total,1));
-      const x=cx+Math.cos(a)*rad, y=cy+Math.sin(a)*rad*0.72; // léger aplatissement
-      points.push({x,y,res,sd}); idx++;
+  // fonction récursive de croissance d'une branche
+  function grow(x,y,ang,len,d,seed){
+    if(d>depth || len<3 || budget<=0) return;
+    budget--;
+    const rand=rng(seed);
+    const x2=x+Math.cos(ang)*len, y2=y+Math.sin(ang)*len;
+    // couleur : interpole du cœur (âge tôt) vers l'âge courant selon la profondeur
+    const t=d/Math.max(1,depth);
+    const col=mix(AGE_COL[0], AGE_COL[age], t);
+    const lw=Math.max(0.6,(depth-d)*0.7+0.6);
+    bctx.strokeStyle=`rgba(${col.r|0},${col.g|0},${col.b|0},${(0.32+0.5*(1-t)).toFixed(3)})`;
+    bctx.lineWidth=lw; bctx.lineCap="round";
+    bctx.beginPath(); bctx.moveTo(x,y);
+    // courbure douce (organique)
+    const mx=(x+x2)/2+Math.cos(ang+1.57)*len*0.12*(rand()-0.5);
+    const my=(y+y2)/2+Math.sin(ang+1.57)*len*0.12*(rand()-0.5);
+    bctx.quadraticCurveTo(mx,my,x2,y2); bctx.stroke();
+
+    // bourgeon (extrémité) : à la dernière génération, fleur colorée par ressource dominante
+    if(d>=depth-1 || (d>=2 && rand()<0.12)){
+      const totalRes=resCount.know+resCount.energy+resCount.culture+resCount.pop||1;
+      // choisit une ressource pondérée par les bâtiments possédés
+      let pick="know", roll=rand()*totalRes, acc=0;
+      for(const k in resCount){ acc+=resCount[k]; if(roll<=acc){ pick=k; break; } }
+      const bc=RESC[pick]||RESC.know, br=lw*1.6+1.5;
+      bctx.globalCompositeOperation="lighter";
+      const fg=bctx.createRadialGradient(x2,y2,0,x2,y2,br*2.4);
+      fg.addColorStop(0,`rgba(${bc.r},${bc.g},${bc.b},0.85)`); fg.addColorStop(1,`rgba(${bc.r},${bc.g},${bc.b},0)`);
+      bctx.fillStyle=fg; bctx.beginPath(); bctx.arc(x2,y2,br*2.4,0,7); bctx.fill();
+      bctx.globalCompositeOperation="source-over";
+    }
+    // fourche : 'branches' enfants, écartés par 'spread', penchés par 'bias'
+    const childLen=len*(0.74-d*0.005);
+    for(let i=0;i<branches;i++){
+      const off=(i-(branches-1)/2);
+      const na=ang + off*spread/Math.max(1,branches-1)*1.4 + bias*0.3 + (rand()-0.5)*0.12;
+      grow(x2,y2,na,childLen,d+1,seed+"-"+i);
     }
   }
-  // nervures (sous les vignettes) — plus visibles
-  fctx.strokeStyle="rgba(240,200,120,0.22)"; fctx.lineWidth=1.2;
-  for(const pt of points){ fctx.beginPath(); fctx.moveTo(cx,cy); fctx.lineTo(pt.x,pt.y); fctx.stroke(); }
-  // soleil central (cœur de la civilisation)
-  const sg=fctx.createRadialGradient(cx,cy,0,cx,cy,26);
-  sg.addColorStop(0,"rgba(255,240,190,0.9)"); sg.addColorStop(1,"rgba(201,164,74,0)");
-  fctx.fillStyle=sg; fctx.beginPath(); fctx.arc(cx,cy,26,0,7); fctx.fill();
-  // vignettes (plus grandes)
-  const vr=Math.max(12, Math.min(W,H)*0.022);
-  for(const pt of points){ vignetteShape(fctx, pt.x, pt.y, vr, pt.res, seed("v"+pt.x.toFixed(0)+pt.y.toFixed(0))); }
-  // lignes de texte (découvertes) calligraphiées en marge gauche
-  const tn=_state.techs||0;
-  fctx.strokeStyle="rgba(205,180,140,0.5)"; fctx.lineWidth=1.5;
-  const mx=Math.min(W,H)*0.07, top=H*0.22, lh=18;
-  for(let i=0;i<tn && i<18;i++){
-    const yy=top+i*lh; const wlen=rnd(40,120);
-    fctx.beginPath(); fctx.moveTo(mx, yy);
-    // simulacre d'écriture manuscrite (petites ondulations)
-    let xx=mx; while(xx<mx+wlen){ const nx=xx+rnd(6,12); fctx.quadraticCurveTo((xx+nx)/2, yy+rnd(-4,4), nx, yy); xx=nx; }
-    fctx.stroke();
-    // lettrine dorée en début de ligne
-    fctx.fillStyle="rgba(201,164,74,0.6)"; fctx.fillRect(mx-10, yy-7, 5, 12);
+
+  // tronc(s) de départ : répétés en symétrie radiale (Harmonie → mandala)
+  for(let k=0;k<symmetry;k++){
+    const baseAng=-Math.PI/2 + (k/symmetry)*Math.PI*2;
+    grow(cx,cy, baseAng, lenBase, 0, baseSeed+"|"+k);
+    if(budget<=0) break;
   }
+
+  // cœur lumineux (la première étincelle)
+  bctx.globalCompositeOperation="lighter";
+  const core=mix(AGE_COL[age],{r:255,g:245,b:210},0.5);
+  const cg=bctx.createRadialGradient(cx,cy,0,cx,cy,BS*0.05);
+  cg.addColorStop(0,`rgba(${core.r|0},${core.g|0},${core.b|0},0.95)`); cg.addColorStop(1,"rgba(0,0,0,0)");
+  bctx.fillStyle=cg; bctx.beginPath(); bctx.arc(cx,cy,BS*0.05,0,7); bctx.fill();
+  bctx.globalCompositeOperation="source-over";
 }
 
-// ---------- Goutte d'encre (clic) ----------
-function inkDrop(x,y,strength){
-  if(!ok) return; strength=strength||1;
-  if(x==null){ x=W*0.5+rnd(-W*0.1,W*0.1); y=H*0.5+rnd(-H*0.08,H*0.08); }
-  drops.push({x,y,r:0,max:rnd(12,22)*Math.min(2.5,strength),life:1,vy:rnd(6,14)});
-  if(!raf) tick();
+// ============================================================
+//  SYNC (depuis le jeu) — ne régénère que si l'état change
+// ============================================================
+function sync(s){
+  if(!ok) return;
+  state=s||state;
+  const sig=stateSig();
+  if(sig!==lastSig){ lastSig=sig; regen(); }
+}
+function stateSig(){
+  const s=state||{}; const b=s.buildings||{};
+  let sig=(s.age||0)+"|"+(s.techs||0)+"|"+JSON.stringify(s.legacies||{})+"|"+JSON.stringify(s.doctrines||{})+"|";
+  let tot=0; for(const k in b) tot+=b[k]||0; sig+=tot;
+  return sig;
 }
 
-// ---------- Composition (parchemin + fresque + gouttes + shimmer) ----------
-function compose(){
-  ctx.clearRect(0,0,W,H);
-  if(parchment) ctx.drawImage(parchment,0,0,W,H);
-  if(fresco) ctx.drawImage(fresco,0,0,W,H);
+// ============================================================
+//  INTERACTION : zoom / déplacement (jouer avec)
+// ============================================================
+function bindInput(){
+  cv.style.touchAction="none"; cv.style.cursor="grab";
+  cv.addEventListener("pointerdown",e=>{ drag=true; lx=e.clientX; ly=e.clientY; cv.style.cursor="grabbing"; cv.setPointerCapture&&cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointermove",e=>{ if(!drag)return; panX+=(e.clientX-lx); panY+=(e.clientY-ly); lx=e.clientX; ly=e.clientY; wake(); });
+  cv.addEventListener("pointerup",()=>{ drag=false; cv.style.cursor="grab"; });
+  cv.addEventListener("wheel",e=>{ e.preventDefault(); zoomT=Math.max(0.6,Math.min(6, zoomT*(e.deltaY<0?1.15:0.87))); wake(); },{passive:false});
+  cv.addEventListener("touchstart",e=>{ if(e.touches.length===2){ pinchD0=tdist(e); pinch0=zoomT; } });
+  cv.addEventListener("touchmove",e=>{ if(e.touches.length===2){ e.preventDefault(); zoomT=Math.max(0.6,Math.min(6, pinch0*(tdist(e)/Math.max(1,pinchD0)))); wake(); } },{passive:false});
+  cv.addEventListener("dblclick",()=>{ zoomT=1; panX=panY=0; wake(); });   // double-clic = recentrer
 }
-function tick(now){
+function tdist(e){ const a=e.touches[0],b=e.touches[1]; return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); }
+let _wakeUntil=0;
+function wake(){ _wakeUntil=performance.now()+1200; if(!raf) loop(); }
+
+// ============================================================
+//  BOUCLE DE RENDU (compose le buffer transformé + halo animé)
+// ============================================================
+function loop(now){
   if(!ok) return;
   now=now||performance.now();
   const dt=Math.min(0.05,(now-(lastFrame||now))/1000); lastFrame=now;
-  shimmer+=dt;
-  compose();
-  // gouttes vivantes
-  const c=inkColor;
-  for(let i=drops.length-1;i>=0;i--){ const d=drops[i];
-    d.r+=(d.max-d.r)*0.18; d.y+=d.vy*dt; d.vy*=0.96; d.life-=dt*0.9;
-    const a=Math.max(0,d.life);
-    const g=ctx.createRadialGradient(d.x,d.y,0,d.x,d.y,Math.max(1,d.r));
-    g.addColorStop(0,`rgba(${c.r},${c.g},${c.b},${(0.55*a).toFixed(3)})`);
-    g.addColorStop(1,`rgba(${c.r},${c.g},${c.b},0)`);
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(d.x,d.y,Math.max(1,d.r),0,7); ctx.fill();
-    if(d.life<=0) drops.splice(i,1);
+  zoom+=(zoomT-zoom)*0.12;
+  rot+=0.0006;             // rotation lente méditative
+  glow+=dt;
+
+  ctx.clearRect(0,0,W,H);
+  // fond cosmique de la zone visible
+  const bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*0.7);
+  bg.addColorStop(0,"#070914"); bg.addColorStop(1,"#04050b");
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  if(buffer){
+    ctx.save();
+    ctx.translate(W/2+panX, H/2+panY);
+    ctx.rotate(rot);
+    const scale=(Math.min(W,H)/BS)*1.35*zoom;
+    ctx.scale(scale,scale);
+    ctx.globalAlpha=1;
+    ctx.drawImage(buffer,-BS/2,-BS/2);
+    // léger halo additif pulsant pour la vie
+    ctx.globalCompositeOperation="lighter";
+    ctx.globalAlpha=0.05+0.04*Math.sin(glow*1.2);
+    ctx.drawImage(buffer,-BS/2,-BS/2);
+    ctx.restore();
+    ctx.globalAlpha=1; ctx.globalCompositeOperation="source-over";
   }
-  // léger scintillement de l'or sur la fresque (très discret)
-  if(fresco){ ctx.globalAlpha=0.04+0.03*Math.sin(shimmer*1.5); ctx.drawImage(fresco,0,0,W,H); ctx.globalAlpha=1; }
-  // continue d'animer tant qu'il y a des gouttes OU pour le shimmer doux (throttlé)
-  if(!hidden && (drops.length>0)) raf=requestAnimationFrame(tick);
-  else raf=null;
+  // continue d'animer en douceur quand visible (rotation lente = peu coûteux),
+  // sinon on s'arrête après l'interaction
+  if(!hidden) raf=requestAnimationFrame(loop); else raf=null;
 }
 
+// gouttes d'encre : on conserve l'API (effet discret au clic) — ici une petite pulsation
+function inkDrop(){ glow+=0.4; wake(); }
+
 window.Palim={
-  init, isActive(){ return ok; }, inkDrop, sync,
-  setInk(r,g,b){ inkColor={r,g,b}; },
-  resize,
+  init, isActive(){ return ok; }, sync, inkDrop,
+  resize(){ sizeCanvas(); lastSig=""; regen(); },
+  recenter(){ zoomT=1; panX=panY=0; wake(); },
+  setInk(){}
 };
 })();
