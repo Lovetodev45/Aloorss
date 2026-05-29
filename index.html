@@ -1385,6 +1385,7 @@ function render(){
   updateObjective();
   renderMissions();
   checkAchievements();
+  syncPalimpseste();
 }
 
 // Production réelle/s d'une unité d'un bâtiment (avec tous les multiplicateurs)
@@ -1700,6 +1701,23 @@ function buyBuilding(id){
 }
 // pousse l'état des bâtiments vers la scène 3D
 function syncWorld(){ if(World.isActive()) World.syncBuildings(G.buildings); }
+// carte id de bâtiment → ressource (pour colorer les vignettes du palimpseste)
+const _BRES=(()=>{ const o={}; for(const b of BUILDINGS) o[b.id]=b.res; return o; })();
+window.__BRES=_BRES;
+// teinte d'encre par âge (la fresque change de couleur dominante)
+const _INK_BY_AGE=[
+  {r:176,g:122,b:82},{r:201,g:164,b:74},{r:201,g:140,b:90},{r:120,g:170,b:150},
+  {r:201,g:150,b:80},{r:120,g:170,b:220},{r:170,g:130,b:230},{r:130,g:160,b:230},{r:227,g:200,b:140}
+];
+function syncPalimpseste(){
+  if(!(window.Palim&&Palim.isActive())) return;
+  Palim.sync({
+    buildings:G.buildings,
+    techs:Object.keys(G.techs).length,
+    age:G.age,
+    ink:_INK_BY_AGE[Math.min(G.age,_INK_BY_AGE.length-1)],
+  });
+}
 // Une doctrine est-elle verrouillée ? (un concurrent du même groupe déjà choisi)
 function doctrineLocked(t){
   if(!t.group) return false;
