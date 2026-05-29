@@ -1,5 +1,5 @@
 /* ÆON service worker — offline-capable, update-friendly */
-const CACHE = "aeon-v3";
+const CACHE = "aeon-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,7 +27,6 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  // Network-first for navigation/HTML so updates appear; fall back to cache offline.
   if (req.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname.endsWith("/")) {
     e.respondWith(
       fetch(req)
@@ -40,7 +39,6 @@ self.addEventListener("fetch", (e) => {
     );
     return;
   }
-  // Cache-first for static assets.
   e.respondWith(
     caches.match(req).then((r) => r || fetch(req).then((res) => {
       const copy = res.clone();
