@@ -36,9 +36,11 @@ function init(){
 function debounce(fn,ms){ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
 function resize(){
   dpr=Math.min(devicePixelRatio||1, 2);
-  W=innerWidth; H=innerHeight;
+  // dimensions = la boîte CSS du canvas (il vit dans le panneau, plus en plein écran)
+  const r=cv.getBoundingClientRect();
+  W=Math.max(280, Math.floor(r.width||cv.clientWidth||640));
+  H=Math.max(280, Math.floor(r.height||cv.clientHeight||480));
   cv.width=Math.floor(W*dpr); cv.height=Math.floor(H*dpr);
-  cv.style.width=W+"px"; cv.style.height=H+"px";
   ctx.setTransform(dpr,0,0,dpr,0,0);
   buildParchment();
   fresco=document.createElement("canvas"); fresco.width=W; fresco.height=H;

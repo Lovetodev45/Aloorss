@@ -44,9 +44,10 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:
 *::-webkit-scrollbar{width:0;height:0;display:none}
 
 /* Fond cosmique STATIQUE (léger, zéro CPU) : dégradé + champ d'étoiles peint une fois */
-#stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.6}
-/* Le Palimpseste vivant — fresque qui se dessine derrière l'UI */
-#palim{position:fixed;inset:0;z-index:0;pointer-events:none;display:block}
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+/* Le Palimpseste — fresque 2D dans l'onglet Civilisation (pas en fond) */
+#palim{display:block;width:100%;height:clamp(360px,62vh,720px);border-radius:14px;
+  border:1px solid var(--hair);background:#0c0a10}
 #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
   background:
     radial-gradient(ellipse 90% 70% at 50% 30%,rgba(40,46,90,.10),transparent 60%),
@@ -611,7 +612,6 @@ body{transition:background 1.6s ease}
 </head>
 <body>
 <canvas id="stars"></canvas>
-<canvas id="palim"></canvas>
 <div id="vignette"></div>
 <canvas id="fx"></canvas>
 <canvas id="confetti"></canvas>
@@ -675,7 +675,8 @@ body{transition:background 1.6s ease}
     <div class="tab active" data-tab="build">🏛️ Bâtiments</div>
     <div class="tab" data-tab="tech">🔬 Découvertes <span class="badge" id="techBadge" style="display:none">0</span></div>
     <div class="tab" data-tab="goals">🏆 Succès</div>
-    <div class="tab" data-tab="stats">📊 Civilisation</div>
+    <div class="tab" data-tab="fresco">🖋️ Civilisation</div>
+    <div class="tab" data-tab="stats">📊 Bilan</div>
     <div class="tab" data-tab="transcend">✦ Transcendance</div>
     <div class="tab" data-tab="cosmos" id="cosmosTab" style="display:none">✸ Cosmos <span class="badge" id="cosmosBadge" style="display:none">0</span></div>
     <div class="tab" data-tab="trials" id="trialsTab" style="display:none">⟁ Épreuves <span class="badge" id="trialsBadge" style="display:none">0</span></div>
@@ -689,6 +690,16 @@ body{transition:background 1.6s ease}
   <div class="panel" id="panel-goals">
     <div class="section-h">Succès — <span id="goalProgress">0 / 0</span></div>
     <div class="grid" id="goalGrid"></div>
+  </div>
+
+  <div class="panel" id="panel-fresco">
+    <div class="section-h">🖋️ La Chronique de votre civilisation</div>
+    <p style="color:var(--muted);font-size:12.5px;margin-bottom:10px;line-height:1.5">
+      Une fresque vivante qui se dessine selon votre partie : chaque bâtiment y grave une vignette, chaque découverte une ligne, et la teinte évolue avec les âges.</p>
+    <canvas id="palim"></canvas>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="ghost" id="frescoExport">⬇ Exporter la fresque (image)</button>
+    </div>
   </div>
 
   <div class="panel" id="panel-stats">
@@ -2430,7 +2441,19 @@ el("tabs").addEventListener("click", e=>{
   document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
   t.classList.add("active");
   el("panel-"+t.dataset.tab).classList.add("active");
+  // l'onglet Civilisation : init paresseuse (le canvas n'a une taille qu'une fois visible)
+  if(t.dataset.tab==="fresco" && window.Palim){
+    if(!Palim.isActive()) Palim.init();
+    Palim.resize(); syncPalimpseste();
+  }
 });
+// bouton export de la fresque
+el("frescoExport").onclick=()=>{
+  const c=el("palim"); if(!c) return;
+  try{ const a=document.createElement("a"); a.href=c.toDataURL("image/png");
+    a.download="aeon-fresque.png"; a.click(); toast("⬇ Fresque exportée."); }
+  catch(e){ toast("Export impossible."); }
+};
 
 el("exportBtn").onclick=exportSave;
 el("importBtn").onclick=()=>el("fileInput").click();
@@ -2486,11 +2509,24 @@ function revealSecret(){
 (function(){
   const c=el("stars"); if(!c) return; const ctx=c.getContext("2d");
   function paint(){ c.width=innerWidth; c.height=innerHeight;
-    ctx.clearRect(0,0,c.width,c.height);
-    const n=Math.min(140, Math.floor(innerWidth*innerHeight/12000));
-    for(let i=0;i<n;i++){ const r=Math.random()*1.3+.2, a=.25+Math.random()*.55;
-      ctx.beginPath(); ctx.fillStyle=`rgba(180,185,220,${a})`;
-      ctx.arc(Math.random()*c.width,Math.random()*c.height,r,0,7); ctx.fill(); }
+    const W=c.width,H=c.height;
+    // vide abyssal : dégradé spatial profond
+    const g=ctx.createRadialGradient(W*0.5,H*0.4,0, W*0.5,H*0.5,Math.max(W,H)*0.8);
+    g.addColorStop(0,"#070914"); g.addColorStop(0.5,"#04050c"); g.addColorStop(1,"#020205");
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // quelques voiles de nébuleuse très diffus (peints une fois, 0 CPU ensuite)
+    const neb=[["rgba(60,80,180,0.06)"],["rgba(150,90,200,0.05)"],["rgba(40,120,150,0.05)"]];
+    for(let i=0;i<3;i++){ const x=Math.random()*W,y=Math.random()*H,r=Math.max(W,H)*(0.25+Math.random()*0.25);
+      const ng=ctx.createRadialGradient(x,y,0,x,y,r); ng.addColorStop(0,neb[i][0]); ng.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=ng; ctx.fillRect(0,0,W,H); }
+    // étoiles : petites + quelques brillantes avec halo
+    const n=Math.min(260, Math.floor(W*H/7000));
+    for(let i=0;i<n;i++){ const x=Math.random()*W,y=Math.random()*H, r=Math.random()*1.2+.2, a=.25+Math.random()*.6;
+      ctx.beginPath(); ctx.fillStyle=`rgba(200,205,235,${a})`; ctx.arc(x,y,r,0,7); ctx.fill(); }
+    for(let i=0;i<Math.floor(n*0.06);i++){ const x=Math.random()*W,y=Math.random()*H,r=Math.random()*1.6+1;
+      const hg=ctx.createRadialGradient(x,y,0,x,y,r*4); hg.addColorStop(0,"rgba(220,225,255,0.7)"); hg.addColorStop(1,"rgba(220,225,255,0)");
+      ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(x,y,r*4,0,7); ctx.fill();
+      ctx.fillStyle="rgba(255,255,255,0.95)"; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); }
   }
   let t; addEventListener("resize",()=>{ clearTimeout(t); t=setTimeout(paint,200); }); paint();
 })();
@@ -3303,7 +3339,7 @@ safe("daily", checkDailyBonus);
 safe("render", render);
 safe("admin", ()=>Admin.init());
 safe("ticker", ()=>Ticker.start());
-safe("palim", ()=>{ if(window.Palim) Palim.init(); });
+/* Palimpseste : init paresseuse à l'ouverture de l'onglet Civilisation (pas en fond). */
 // Un ami a partagé sa civilisation ? On l'affiche (sans toucher à ta partie).
 safe("friend", checkFriendLink);
 setTimeout(()=>{ try{ if(!_friendShown) checkPrologue(); }catch(e){} }, 800);
