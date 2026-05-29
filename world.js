@@ -134,17 +134,20 @@ function buildOrganism(){
         float n=fbm(vLocal*1.8+vec3(0.0,0.0,uTime*0.035));
         vec3 base=mix(uBase,uB2,n*0.5+0.5);
         float dif=max(dot(N,normalize(vec3(0.6,0.55,0.7))),0.0);
-        vec3 col=base*(0.18+dif*0.55);
+        vec3 col=base*(0.20+dif*0.50);
+        // énergie : veines internes orangées, discrètes
         float veins=pow(max(fbm(vLocal*2.4+vec3(7.0)),0.0),2.0);
-        float beat=0.5+0.5*sin(uTime*2.0+fbm(vLocal*2.0)*6.28);
-        col+=vec3(0.9,0.45,0.12)*veins*beat*uEnergy*0.9;
-        col+=uRim*fres*0.4;
-        col+=vec3(0.2,0.26,0.7)*fres*0.22;
+        float beat=0.5+0.5*sin(uTime*1.8+fbm(vLocal*2.0)*6.28);
+        col+=vec3(0.85,0.42,0.12)*veins*beat*uEnergy*0.6;
+        // liseré atmosphérique : doré sobre, fin (pas d'arc-en-ciel)
+        col+=uRim*fres*0.30;
+        col+=vec3(0.10,0.14,0.34)*fres*0.16;
+        // onde de clic, blanc-bleu froid
         float ang=acos(clamp(dot(dir,normalize(uClickPos)),-1.0,1.0));
         float radius=uClickAge*2.2;
-        float band=smoothstep(0.30,0.0,abs(ang-radius));
-        float fade=exp(-uClickAge*1.7);
-        col+=vec3(0.55,0.72,1.0)*band*fade*(0.9+uClickStr*0.06);
+        float band=smoothstep(0.26,0.0,abs(ang-radius));
+        float fade=exp(-uClickAge*1.9);
+        col+=vec3(0.5,0.66,0.95)*band*fade*(0.8+uClickStr*0.05);
         gl_FragColor=vec4(col,1.0);
       }`,
   });
@@ -173,7 +176,7 @@ function buildGlyphs(){
   const pos=new Float32Array(MAXGLYPHS*3);
   for(let i=0;i<MAXGLYPHS;i++){const d=randDir().multiplyScalar(R*1.015);pos[i*3]=d.x;pos[i*3+1]=d.y;pos[i*3+2]=d.z;}
   const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(pos,3)); g.setDrawRange(0,0);
-  glyphs=new THREE.Points(g,new THREE.PointsMaterial({color:0xf5c87a,size:0.055,transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true}));
+  glyphs=new THREE.Points(g,new THREE.PointsMaterial({color:0xd8b87a,size:0.05,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true}));
   organism.add(glyphs);
 }
 // POPULATION — nuée orbitale
@@ -257,7 +260,7 @@ function animate(){
   // CONNAISSANCE → veines
   const tv=Math.round(vf.know*MAXVEINS);
   for(let i=0;i<MAXVEINS;i++){const want=i<tv?1:0;const v=veins[i];
-    v.userData.op+=((want?0.85:0)-v.userData.op)*0.06; v.material.opacity=v.userData.op; v.visible=v.userData.op>0.01;}
+    v.userData.op+=((want?0.7:0)-v.userData.op)*0.06; v.material.opacity=v.userData.op; v.visible=v.userData.op>0.01;}
   // CULTURE → glyphes
   glyphShown+=(Math.round(vf.culture*MAXGLYPHS)-glyphShown)*0.08;
   glyphs.geometry.setDrawRange(0,Math.floor(glyphShown));
