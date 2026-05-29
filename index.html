@@ -2041,7 +2041,10 @@ function sanitizeResources(){
 }
 
 // ---------- Sauvegarde ----------
-function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }catch(e){} }
+let _wiping=false;  // bloque toute sauvegarde pendant un reset (sinon reload réécrit l'ancienne partie)
+function save(){ if(_wiping) return; try{ localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }catch(e){} }
+// Efface tout puis recharge — sans qu'aucune sauvegarde ne réécrive par-dessus.
+function hardWipe(){ _wiping=true; try{ localStorage.removeItem(SAVE_KEY); }catch(e){} location.reload(); }
 function load(){
   try{
     const raw=localStorage.getItem(SAVE_KEY);
@@ -2124,7 +2127,7 @@ function confirmRestart(){
     icon:"⚠️", title:"Recommencer de zéro ?",
     text:"Cette action efface <b>définitivement TOUT</b> : votre civilisation, vos étincelles, vos Singularités, vos Décrets, vos héritages et vos épreuves accomplies. Vous repartez de l'Âge de Pierre. <b>Irréversible.</b>",
     choices:[
-      {label:"<b>Oui</b>, tout effacer et recommencer", fn:()=>{ localStorage.removeItem(SAVE_KEY); location.reload(); }},
+      {label:"<b>Oui</b>, tout effacer et recommencer", fn:hardWipe},
       {label:"Annuler", fn:()=>{}},
     ]});
 }
@@ -2727,8 +2730,7 @@ const Admin=(()=>{
     "reset-flags":()=>{ G.prologueSeen=false; G.revelationSeen=false; G.deepRevSeen=false;
       G.endingSeen=false; G.transcendanceAnnounced=false;
       toast("🛠️ Drapeaux narratifs réinitialisés (écrans revisibles)."); },
-    "hard-reset":()=>{ if(confirm("Effacer toute la sauvegarde et recharger ?")){
-      localStorage.removeItem(SAVE_KEY); location.reload(); } },
+    "hard-reset":()=>{ if(confirm("Effacer toute la sauvegarde et recharger ?")) hardWipe(); },
   };
 
   function run(key){
