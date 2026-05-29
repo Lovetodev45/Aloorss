@@ -2979,22 +2979,30 @@ const FX=(()=>{
         col:cols[(Math.random()*cols.length)|0],shape:o.shape||"circle"}); }
     wake();
   }
-  function confetti(n){ n=Math.max(8,Math.round((n||130)*PCOUNT));
-    const cols=["#c9a44a","#e6cd88","#f4e6c0","#b89446","#fff3cf"];   // famille or uniquement
-    for(let i=0;i<n;i++) parts.push({x:Math.random()*W,y:-20-Math.random()*H*.35,
-      vx:(Math.random()-.5)*2.2,vy:2+Math.random()*3.2,life:1,decay:.005+Math.random()*.005,
-      r:(3+Math.random()*4)*PSIZE,g:.05,col:cols[(Math.random()*cols.length)|0],shape:"rect",spin:Math.random()*.3});
+  // "Confetti" repensé façon Jobs : pas de pluie de papier — une ASCENSION de
+  // fines lueurs dorées qui s'élèvent doucement depuis le bas et s'éteignent (braises/étoiles qui montent).
+  function confetti(n){ n=Math.max(8,Math.round((n||130)*PCOUNT*0.8));
+    const cols=["#c9a44a","#e6cd88","#f4e6c0","#fff3cf"];
+    for(let i=0;i<n;i++) parts.push({
+      x:Math.random()*W, y:H+10+Math.random()*H*0.2,          // partent du bas
+      vx:(Math.random()-.5)*0.6,                              // dérive horizontale très douce
+      vy:-(0.7+Math.random()*1.6),                            // montent lentement
+      life:1, decay:.004+Math.random()*.005,
+      r:(1.2+Math.random()*2.2)*PSIZE, g:-0.004,              // gravité négative légère (s'élèvent)
+      col:cols[(Math.random()*cols.length)|0], shape:"circle"});
     wake(); }
   function tick(){
     if(parts.length===0){ x.clearRect(0,0,W,H); running=false; return; } // s'endort quand vide
     x.clearRect(0,0,W,H);
     for(let i=parts.length-1;i>=0;i--){ const p=parts[i];
       p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=.99; p.life-=p.decay;
-      if(p.life<=0||p.y>H+30){ parts.splice(i,1); continue; }
+      if(p.life<=0||p.y>H+30||p.y<-30){ parts.splice(i,1); continue; }
       x.globalAlpha=Math.max(0,Math.min(PMAXA,p.life*PMAXA)); x.fillStyle=p.col;
       if(p.shape==="rect"){ x.save(); x.translate(p.x,p.y);
         x.rotate((p.spin||.1)*p.x*.04+p.life*4); x.fillRect(-p.r,-p.r*.5,p.r*2,p.r); x.restore(); }
-      else { x.beginPath(); x.arc(p.x,p.y,Math.max(.5,p.r*p.life),0,7); x.fill(); }
+      else { x.globalCompositeOperation="lighter";   // lueurs lumineuses qui s'élèvent
+        x.beginPath(); x.arc(p.x,p.y,Math.max(.5,p.r*p.life),0,7); x.fill();
+        x.globalCompositeOperation="source-over"; }
     }
     x.globalAlpha=1; requestAnimationFrame(tick);
   }
