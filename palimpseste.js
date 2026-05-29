@@ -27,28 +27,41 @@ function buildParchment(){
   parchment=document.createElement("canvas");
   parchment.width=W; parchment.height=H;
   const p=parchment.getContext("2d");
-  // fond profond, légèrement chaud vers le centre
-  const g=p.createRadialGradient(W*0.5,H*0.42,Math.min(W,H)*0.1, W*0.5,H*0.5,Math.max(W,H)*0.75);
-  g.addColorStop(0,"#0b0a12"); g.addColorStop(1,"#050509");
+  // parchemin chaud, visible : papier ancien éclairé au centre, assombri vers les bords
+  const g=p.createRadialGradient(W*0.5,H*0.42,Math.min(W,H)*0.05, W*0.5,H*0.55,Math.max(W,H)*0.85);
+  g.addColorStop(0,"#2a2418"); g.addColorStop(0.5,"#1c1810"); g.addColorStop(1,"#0a0a10");
   p.fillStyle=g; p.fillRect(0,0,W,H);
-  // grain de parchemin : milliers de points très discrets
-  const n=Math.floor(W*H/2600);
+  // grain de parchemin : points clairs discrets
+  const n=Math.floor(W*H/1800);
   for(let i=0;i<n;i++){
-    const x=Math.random()*W, y=Math.random()*H, a=Math.random()*0.04;
-    p.fillStyle=`rgba(201,180,140,${a})`;
+    const x=Math.random()*W, y=Math.random()*H, a=Math.random()*0.06;
+    p.fillStyle=`rgba(220,200,150,${a})`;
     p.fillRect(x,y,1,1);
   }
-  // quelques fibres/veines très douces
-  p.strokeStyle="rgba(160,140,100,0.05)"; p.lineWidth=1;
-  for(let i=0;i<26;i++){
+  // fibres / veines du papier
+  p.strokeStyle="rgba(180,155,110,0.06)"; p.lineWidth=1;
+  for(let i=0;i<34;i++){
     p.beginPath(); let x=Math.random()*W, y=Math.random()*H;
     p.moveTo(x,y);
-    for(let k=0;k<5;k++){ x+=rnd(-60,60); y+=rnd(-40,40); p.lineTo(x,y); }
+    for(let k=0;k<5;k++){ x+=rnd(-70,70); y+=rnd(-46,46); p.lineTo(x,y); }
     p.stroke();
   }
-  // vignette sombre sur les bords (cadre de page)
-  const vg=p.createRadialGradient(W*0.5,H*0.5,Math.min(W,H)*0.3, W*0.5,H*0.5,Math.max(W,H)*0.7);
-  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.55)");
+  // tache de café/usure çà et là (cohérent "vieux manuscrit")
+  for(let i=0;i<5;i++){
+    const x=rnd(W*0.15,W*0.85), y=rnd(H*0.2,H*0.8), r=rnd(40,120);
+    const tg=p.createRadialGradient(x,y,r*0.4,x,y,r);
+    tg.addColorStop(0,"rgba(90,70,40,0.10)"); tg.addColorStop(1,"rgba(90,70,40,0)");
+    p.fillStyle=tg; p.beginPath(); p.arc(x,y,r,0,7); p.fill();
+  }
+  // léger cadre doré (bordure de page enluminée)
+  p.strokeStyle="rgba(201,164,74,0.22)"; p.lineWidth=2;
+  const m=Math.min(W,H)*0.055;
+  p.strokeRect(m, m, W-2*m, H-2*m);
+  p.strokeStyle="rgba(201,164,74,0.12)"; p.lineWidth=1;
+  p.strokeRect(m+6, m+6, W-2*m-12, H-2*m-12);
+  // vignette douce sur les bords
+  const vg=p.createRadialGradient(W*0.5,H*0.5,Math.min(W,H)*0.35, W*0.5,H*0.5,Math.max(W,H)*0.72);
+  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.5)");
   p.fillStyle=vg; p.fillRect(0,0,W,H);
 }
 
