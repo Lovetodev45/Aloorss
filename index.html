@@ -88,6 +88,14 @@ header{text-align:center;padding:20px 0 10px}
 .objective{margin-top:9px;font-size:12.5px;color:var(--accent-light);letter-spacing:.03em;
   background:rgba(111,134,200,.08);border:1px solid var(--hair);border-radius:9px;padding:8px 12px;line-height:1.45}
 .objective b{color:var(--gold-soft)}
+/* Missions : bandeau de 3 objectifs courts, toujours visibles */
+.missions{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.mission{display:flex;align-items:center;gap:10px;padding:7px 11px;border-radius:9px;
+  background:rgba(111,134,200,.07);border:1px solid var(--hair);font-size:12px;text-align:left}
+.mission .mtxt{flex:1;min-width:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mission .mbar{flex:0 0 64px;height:5px;border-radius:5px;background:rgba(0,0,0,.4);overflow:hidden}
+.mission .mbar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));transition:width .3s ease}
+.mission .mrew{flex:0 0 auto;font-size:10px;color:var(--gold-soft);font-weight:700;letter-spacing:.02em}
 .bar{height:7px;background:rgba(0,0,0,.4);border-radius:6px;overflow:hidden;border:1px solid var(--hair)}
 .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));transition:width .3s ease;border-radius:6px;box-shadow:0 0 10px var(--gold-glow)}
 .bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:7px;letter-spacing:.04em}
@@ -528,6 +536,7 @@ body{transition:background 1.6s ease}
     </div>
     <div class="objective" id="objective">◈ Objectif : touchez l'organisme pour éveiller la pensée.</div>
     <button class="advance-btn" id="advanceBtn" disabled>Faire avancer l'humanité</button>
+    <div class="missions" id="missions"></div>
   </div>
 
   <!-- Resources -->
@@ -727,16 +736,17 @@ body{transition:background 1.6s ease}
    ============================================================ */
 
 // ---------- Données : les Âges ----------
+// Courbe de progression lissée : chaque âge ≈ ×25 le précédent (montée cohérente et régulière).
 const AGES = [
   {name:"Âge de Pierre",    icon:"🪨", tag:"La première étincelle de conscience.",        req:0},
-  {name:"Antiquité",        icon:"🏺", tag:"Cités, écriture et premières lois.",           req:1.2e3},
-  {name:"Moyen Âge",        icon:"🏰", tag:"Royaumes, foi et savoir préservé.",            req:2.5e4},
-  {name:"Renaissance",      icon:"🎨", tag:"L'esprit s'ouvre à la science et à l'art.",    req:6e5},
-  {name:"Ère Industrielle", icon:"⚙️", tag:"La vapeur met le monde en mouvement.",         req:1.5e7},
-  {name:"Ère de l'Information",icon:"💾",tag:"Le savoir circule à la vitesse de la lumière.",req:4e8},
-  {name:"Ère de l'IA",      icon:"🤖", tag:"L'intelligence se démultiplie.",               req:1.2e10},
-  {name:"Ère Spatiale",     icon:"🚀", tag:"L'humanité quitte son berceau.",               req:5e11},
-  {name:"Transcendance",    icon:"✦",  tag:"Au-delà de la chair, vers les étoiles.",       req:2.5e13},
+  {name:"Antiquité",        icon:"🏺", tag:"Cités, écriture et premières lois.",           req:1e3},     // ×—
+  {name:"Moyen Âge",        icon:"🏰", tag:"Royaumes, foi et savoir préservé.",            req:2.5e4},   // ×25
+  {name:"Renaissance",      icon:"🎨", tag:"L'esprit s'ouvre à la science et à l'art.",    req:6e5},     // ×24
+  {name:"Ère Industrielle", icon:"⚙️", tag:"La vapeur met le monde en mouvement.",         req:1.5e7},   // ×25
+  {name:"Ère de l'Information",icon:"💾",tag:"Le savoir circule à la vitesse de la lumière.",req:4e8},    // ×27
+  {name:"Ère de l'IA",      icon:"🤖", tag:"L'intelligence se démultiplie.",               req:1e10},    // ×25
+  {name:"Ère Spatiale",     icon:"🚀", tag:"L'humanité quitte son berceau.",               req:2.5e11},  // ×25
+  {name:"Transcendance",    icon:"✦",  tag:"Au-delà de la chair, vers les étoiles.",       req:6e12},    // ×24
 ];
 
 // ---------- Données : Bâtiments ----------
@@ -873,6 +883,8 @@ function newGame(){
     challenge:null,       // id de l'épreuve en cours (null = partie normale)
     runClicks:0,          // clics manuels de la run en cours (pour épreuves "sans clic")
     runStart:Date.now(),  // début de la run en cours (pour speedruns)
+    missions:null,        // 3 missions actives (objectifs courts renouvelés)
+    missionsDone:0,       // compteur total de missions accomplies
   };
 }
 
@@ -1004,6 +1016,7 @@ function loop(now){
 
   // épreuve en cours : vérifie la réussite à chaque tick
   if(G.challenge) checkChallenge();
+  checkMissions();
 
   // évènement aléatoire toutes ~75-140s (pas pendant une épreuve : on garde le contrôle)
   if(!G.challenge && Date.now() - G.lastEvent > (75+Math.random()*65)*1000 && G.totalKnow>500){
@@ -1078,6 +1091,7 @@ function render(){
 
   renderBuild(); renderTech(); renderGoals(); renderStats(); renderTranscend(); renderCosmos(); renderTrials();
   updateObjective();
+  renderMissions();
   checkAchievements();
 }
 
@@ -1156,6 +1170,25 @@ function renderTech(){
 
 // ---------- Objectif dynamique : toujours dire au joueur quoi viser ----------
 let _objSig="";
+let _missSig="";
+function renderMissions(){
+  const host=el("missions"); if(!host) return;
+  if(!G.missions){ initMissions(); }
+  // signature anti-scintillement (ne redessine que si le texte/progrès change visiblement)
+  let sig=(G.missionsDone||0)+"|";
+  for(const m of G.missions) sig+=m.desc+Math.floor(missionProgress(m)*20)+";";
+  if(sig===_missSig) return; _missSig=sig;
+  let html=`<div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:1px">✦ Missions · ${G.missionsDone||0} accomplies</div>`;
+  for(const m of G.missions){
+    const p=Math.round(missionProgress(m)*100);
+    const rew = m.reward[0]==="know" ? "🧠+" : "×"+m.reward[1];
+    html+=`<div class="mission"><span class="mtxt">${m.desc}</span>
+      <span class="mbar"><i style="width:${p}%"></i></span>
+      <span class="mrew">${rew}</span></div>`;
+  }
+  host.innerHTML=html;
+}
+
 function updateObjective(){
   const node=el("objective"); if(!node) return;
   let txt;
@@ -1569,6 +1602,64 @@ function fmtTime(s){ const m=Math.floor(s/60), r=s%60; return m>0? `${m} min ${r
 function grant(res,sec){ const g=Math.max(0,rateOf(res)*sec); G.res[res]+=g; if(res==="know")G.totalKnow+=g; return g; }
 function spend(res,sec){ const c=Math.max(0,rateOf(res)*sec); G.res[res]=Math.max(0,G.res[res]-c); return c; }
 
+// ============================================================
+//   MISSIONS — objectifs courts qui se renouvellent en continu.
+//   Le moteur anti-ennui : toujours 3 buts atteignables → dopamine régulière.
+// ============================================================
+// Chaque modèle génère une mission ajustée à l'état actuel (scale = défi proportionnel).
+const MISSION_TEMPLATES=[
+  {id:"click",  gen:()=>{ const n=15+Math.floor(Math.random()*20);
+    return {desc:`Éveiller l'esprit ${n} fois`, target:n, get:()=>missionClicks, reward:["boost",2,15]}; }},
+  {id:"build",  gen:()=>{ const n=totalBuildings()+3+Math.floor(Math.random()*4);
+    return {desc:`Posséder ${n} bâtiments au total`, target:n, get:()=>totalBuildings(), reward:["know",30]}; }},
+  {id:"know",   gen:()=>{ const cur=G.totalKnow, n=Math.ceil((cur*1.5+rateOf("know")*60+50));
+    return {desc:`Atteindre ${fmt(n)} de connaissance totale`, target:n, get:()=>G.totalKnow, reward:["boost",2.5,20]}; }},
+  {id:"energy", gen:()=>{ const n=Math.ceil(G.res.energy+rateOf("energy")*45+20);
+    return {desc:`Accumuler ${fmt(n)} d'énergie`, target:n, get:()=>G.res.energy, reward:["know",25]}; }},
+  {id:"culture",gen:()=>{ const n=Math.ceil(G.res.culture+rateOf("culture")*45+15);
+    return {desc:`Accumuler ${fmt(n)} de culture`, target:n, get:()=>G.res.culture, reward:["boost",2,15]}; }},
+  {id:"tech",   gen:()=>{ const n=Object.keys(G.techs).length+1;
+    return {desc:`Débloquer ${n} découverte(s) au total`, target:n, get:()=>Object.keys(G.techs).length, reward:["know",60]}; }},
+];
+let missionClicks=0;  // clics depuis le début (pour les missions "éveiller N fois")
+function rollMission(){
+  const t=MISSION_TEMPLATES[Math.floor(Math.random()*MISSION_TEMPLATES.length)];
+  const m=t.gen(); m.tid=t.id; m.base=m.get();   // mémorise le point de départ pour les missions cumulatives
+  return m;
+}
+function initMissions(){
+  if(!G.missions || !G.missions.length){ G.missions=[rollMission(),rollMission(),rollMission()]; }
+}
+function missionProgress(m){
+  // progrès relatif au point de départ pour les cumulatifs (clics/bâtiments/techs/connaissance)
+  const cur=m.get();
+  if(m.tid==="click"){ const p=missionClicks-(m._startClicks||0); return Math.min(1,p/m.target); }
+  return Math.min(1, cur/m.target);
+}
+function checkMissions(){
+  if(!G.missions) return;
+  for(let i=0;i<G.missions.length;i++){
+    const m=G.missions[i]; if(!m) continue;
+    let done=false;
+    if(m.tid==="click") done=(missionClicks-(m._startClicks||0))>=m.target;
+    else done=m.get()>=m.target;
+    if(done) completeMission(i);
+  }
+}
+function completeMission(i){
+  const m=G.missions[i]; if(!m) return;
+  G.missionsDone=(G.missionsDone||0)+1;
+  // récompense
+  const r=m.reward;
+  if(r[0]==="know"){ const g=grant("know",r[1]); toast(`✔ Mission accomplie : <b>+${fmt(g)}</b> 🧠`); }
+  else if(r[0]==="boost"){ boost(r[1],r[2]); toast(`✔ Mission accomplie : <b>×${r[1]}</b> ${r[2]} s !`); }
+  Sound.achieve(); FX.confetti(40);
+  // remplace par une nouvelle mission
+  const nm=rollMission(); if(nm.tid==="click") nm._startClicks=missionClicks;
+  G.missions[i]=nm;
+  render(); save();
+}
+
 // Chaque événement a un `age` minimal (apparaît à partir de cet âge).
 // kind:"boon" = positif · "dilemma" = arbitrage (coût ET gain) · "crisis" = défi (ralentissement surmontable)
 const EVENTS=[
@@ -1692,6 +1783,7 @@ function doSpark(e){
   G.res.know+=v; G.totalKnow+=v;
   G.clicks=(G.clicks||0)+1;
   G.runClicks=(G.runClicks||0)+1;   // pour l'épreuve "L'Âge muet"
+  missionClicks++;                  // pour les missions "éveiller N fois"
   const btn=el("sparkBtn"), rect=btn.getBoundingClientRect();
   const cx=(e&&e.clientX!=null)? e.clientX : rect.left+rect.width/2;
   const cy=(e&&e.clientY!=null)? e.clientY : rect.top+rect.height/2;
@@ -2460,6 +2552,7 @@ sanitizeResources();
 applyTheme(G.age);
 syncDisplay();
 if(G.muted){ Sound.set(false); el("muteBtn").textContent="🔇 Muet"; }
+initMissions();
 checkDailyBonus();
 render();
 Admin.init();
