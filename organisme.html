@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ÆON — Organisme Cosmique (prototype)</title>
+<style>
+  :root{
+    --know:#3a7bff; --energy:#ffb454; --culture:#c98bff; --pop:#5ee0a0;
+    --ink:#e8e8f5; --dim:#7a7a9a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#04040a;font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--ink)}
+  #c{position:fixed;inset:0;display:block;touch-action:none}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;z-index:10;pointer-events:none;
+       display:flex;flex-direction:column;justify-content:space-between}
+  .top{padding:22px 24px;text-align:center}
+  .title{font-family:Georgia,'Cinzel',serif;font-weight:800;font-size:clamp(26px,5vw,46px);
+         letter-spacing:.26em;
+         background:linear-gradient(120deg,#f5c542,#fff7d6 35%,#a99bff 70%,#7c6cff);
+         -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+         filter:drop-shadow(0 0 22px rgba(124,108,255,.3))}
+  .sub{margin-top:6px;color:var(--dim);font-size:12px;letter-spacing:.34em;text-transform:uppercase}
+
+  /* barres de ressources */
+  .res-wrap{position:fixed;top:18px;right:18px;z-index:11;display:flex;flex-direction:column;gap:9px;
+            width:min(220px,42vw);pointer-events:none}
+  .res{background:rgba(14,14,28,.62);border:1px solid rgba(120,120,170,.22);border-radius:12px;
+       padding:9px 12px;backdrop-filter:blur(10px)}
+  .res-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;
+            text-transform:uppercase;letter-spacing:.12em;color:var(--dim)}
+  .res-val{font-variant-numeric:tabular-nums;font-weight:800;font-size:13px;color:var(--ink)}
+  .res-bar{height:6px;margin-top:6px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden}
+  .res-bar>i{display:block;height:100%;width:0;border-radius:6px;transition:width .3s ease}
+  .b-know>i{background:linear-gradient(90deg,#1a3a8a,var(--know))}
+  .b-energy>i{background:linear-gradient(90deg,#a05a10,var(--energy))}
+  .b-culture>i{background:linear-gradient(90deg,#6a3aa0,var(--culture))}
+  .b-pop>i{background:linear-gradient(90deg,#1a7a4a,var(--pop))}
+
+  /* bas : actions */
+  .bottom{padding:0 18px 26px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .hint{color:var(--dim);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+        text-shadow:0 0 14px rgba(0,0,0,.8);animation:pulse 3s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:.95}}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
+  .btn{pointer-events:auto;border:1px solid rgba(120,120,170,.3);border-radius:11px;cursor:pointer;
+       background:rgba(18,18,37,.7);color:var(--ink);font-weight:600;font-size:13px;padding:10px 16px;
+       backdrop-filter:blur(10px);transition:transform .12s,border-color .2s,background .2s}
+  .btn:hover{transform:translateY(-2px);border-color:rgba(169,155,255,.7);background:rgba(28,28,52,.8)}
+  .btn:active{transform:scale(.96)}
+  .btn.k{border-color:rgba(58,123,255,.5)} .btn.e{border-color:rgba(255,180,84,.5)}
+  .btn.c{border-color:rgba(201,139,255,.5)} .btn.p{border-color:rgba(94,224,160,.5)}
+
+  .note{position:fixed;left:18px;bottom:18px;z-index:11;max-width:300px;
+        color:var(--dim);font-size:11px;line-height:1.6;pointer-events:none}
+  .note b{color:#a99bff}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="top">
+    <div class="title">ÆON</div>
+    <div class="sub">Organisme Cosmique · prototype</div>
+  </div>
+  <div class="bottom">
+    <div class="hint" id="hint">Touchez l'organisme pour l'éveiller</div>
+    <div class="actions">
+      <button class="btn k" data-grow="know">🧠 Nourrir la pensée</button>
+      <button class="btn e" data-grow="energy">⚡ Insuffler l'énergie</button>
+      <button class="btn c" data-grow="culture">✨ Éveiller la culture</button>
+      <button class="btn p" data-grow="pop">👥 Multiplier la vie</button>
+    </div>
+  </div>
+</div>
+
+<div class="res-wrap">
+  <div class="res"><div class="res-head"><span style="color:var(--know)">🧠 Connaissance</span><span class="res-val" id="v-know">0%</span></div><div class="res-bar b-know"><i id="bar-know"></i></div></div>
+  <div class="res"><div class="res-head"><span style="color:var(--energy)">⚡ Énergie</span><span class="res-val" id="v-energy">0%</span></div><div class="res-bar b-energy"><i id="bar-energy"></i></div></div>
+  <div class="res"><div class="res-head"><span style="color:var(--culture)">✨ Culture</span><span class="res-val" id="v-culture">0%</span></div><div class="res-bar b-culture"><i id="bar-culture"></i></div></div>
+  <div class="res"><div class="res-head"><span style="color:var(--pop)">👥 Population</span><span class="res-val" id="v-pop">0%</span></div><div class="res-bar b-pop"><i id="bar-pop"></i></div></div>
+</div>
+
+<div class="note">Prototype — Système 1 (Sphère Vivante) + ébauche Système 2 (les 4 ressources s'expriment <b>sur</b> l'organisme). Glissez pour orbiter · molette/pinch pour zoomer.</div>
+
+<script src="vendor/three.min.js"></script>
+<script>
+"use strict";
+(function(){
+if(typeof THREE==="undefined"){ document.querySelector(".note").innerHTML="⚠ Three.js introuvable (vendor/three.min.js)."; return; }
+
+// ============================================================
+//  ÉTAT (en mémoire uniquement — pas de localStorage)
+// ============================================================
+const S = { know:0.04, energy:0.0, culture:0.0, pop:0.0 };  // 0..1 (niveaux visuels)
+const disp = { know:0, energy:0, culture:0, pop:0 };          // valeurs lissées affichées
+
+// ============================================================
+//  SCÈNE
+// ============================================================
+const canvas=document.getElementById("c");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.setSize(innerWidth,innerHeight,false);
+renderer.setClearColor(0x04040a,1);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,1000);
+
+// Lumières (selon spec)
+scene.add(new THREE.AmbientLight(0x0a0a1a,1.0));
+const gold=new THREE.DirectionalLight(0xffd9a0,1.4); gold.position.set(5,4,6); scene.add(gold);
+scene.add(new THREE.HemisphereLight(0x3a4cff,0x1a0a2a,0.5)); // cosmique haut / sombre bas
+
+// Champ d'étoiles cosmique
+(function stars(){
+  const N=1400,pos=new Float32Array(N*3),col=new Float32Array(N*3);
+  for(let i=0;i<N;i++){const r=60+Math.random()*200,u=Math.random()*2-1,t=Math.random()*6.283,s=Math.sqrt(1-u*u);
+    pos[i*3]=Math.cos(t)*s*r;pos[i*3+1]=u*r;pos[i*3+2]=Math.sin(t)*s*r;
+    const b=0.5+Math.random()*0.5;col[i*3]=b*0.7;col[i*3+1]=b*0.75;col[i*3+2]=b;}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  g.setAttribute("color",new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(g,new THREE.PointsMaterial({size:0.5,vertexColors:true,transparent:true,opacity:.85,sizeAttenuation:true})));
+})();
+
+// ============================================================
+//  LA SPHÈRE VIVANTE — ShaderMaterial GLSL custom
+// ============================================================
+const SNOISE = `
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x,289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+float snoise(vec3 v){
+  const vec2 C=vec2(1.0/6.0,1.0/3.0); const vec4 D=vec4(0.0,0.5,1.0,2.0);
+  vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.0-g; vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+  vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy;
+  i=mod(i,289.0);
+  vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+  float n_=1.0/7.0; vec3 ns=n_*D.wyz-D.xzx;
+  vec4 j=p-49.0*floor(p*ns.z*ns.z);
+  vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.0-abs(x)-abs(y);
+  vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0; vec4 s1=floor(b1)*2.0+1.0; vec4 sh=-step(h,vec4(0.0));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+  vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0); m=m*m;
+  return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+}
+float fbm(vec3 p){float a=0.5,s=0.0;for(int i=0;i<5;i++){s+=a*snoise(p);p*=2.0;a*=0.5;}return s;}
+`;
+
+const uniforms={
+  uTime:{value:0}, uPulse:{value:0},
+  uKnow:{value:0}, uEnergy:{value:0}, uCulture:{value:0}, uPop:{value:0},
+};
+
+const mat=new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader:`
+    varying vec3 vPos; varying vec3 vN; varying vec3 vView;
+    void main(){
+      vPos=position;
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      vView=mv.xyz;
+      vN=normalize(normalMatrix*normal);
+      gl_Position=projectionMatrix*mv;
+    }`,
+  fragmentShader:SNOISE+`
+    precision highp float;
+    varying vec3 vPos; varying vec3 vN; varying vec3 vView;
+    uniform float uTime,uPulse,uKnow,uEnergy,uCulture,uPop;
+    void main(){
+      vec3 N=normalize(vN);
+      vec3 V=normalize(-vView);
+      float fres=pow(1.0-max(dot(N,V),0.0),3.0);
+
+      // --- surface noire organique ---
+      float n=fbm(vPos*1.8+vec3(0.0,0.0,uTime*0.04));
+      vec3 base=mix(vec3(0.012,0.012,0.026),vec3(0.05,0.045,0.075),n*0.5+0.5);
+
+      // éclairage doré directionnel (stylisé)
+      float dif=max(dot(N,normalize(vec3(0.6,0.55,0.7))),0.0);
+      vec3 col=base*(0.16+dif*0.5);
+      col+=vec3(0.30,0.22,0.08)*dif*0.35;
+
+      // --- CONNAISSANCE : filaments neuronaux bleus ---
+      float fil=pow(1.0-abs(fbm(vPos*3.0+uTime*0.08)),6.0);
+      col+=vec3(0.25,0.5,1.0)*fil*uKnow*1.6;
+
+      // --- ÉNERGIE : veines dorées pulsantes ---
+      float vein=pow(max(fbm(vPos*2.2+vec3(11.0)),0.0),2.0);
+      float beat=0.55+0.45*sin(uTime*2.2+fbm(vPos*2.0)*6.28);
+      col+=vec3(1.0,0.6,0.16)*vein*beat*uEnergy*1.3;
+
+      // --- CULTURE : chatoiement iridescent au limbe ---
+      vec3 iri=0.5+0.5*cos(vec3(0.0,2.1,4.2)+n*4.0+uTime*0.3);
+      col+=iri*fres*uCulture*1.4;
+
+      // --- POPULATION : myriade de points de vie ---
+      float cell=snoise(vPos*22.0);
+      float dots=smoothstep(0.86,0.96,cell);
+      col+=vec3(0.3,1.0,0.5)*dots*uPop*(0.6+0.4*sin(uTime*3.0+cell*20.0));
+
+      // halo cosmique permanent + onde de clic
+      col+=vec3(0.28,0.34,0.85)*fres*0.45;
+      col+=vec3(0.6,0.55,1.0)*fres*uPulse*1.2;
+
+      gl_FragColor=vec4(col,1.0);
+    }`,
+});
+
+const organism=new THREE.Mesh(new THREE.SphereGeometry(2,128,128),mat);
+scene.add(organism);
+
+// ============================================================
+//  CONTRÔLES ORBITAUX (maison — OrbitControls absent du build core)
+// ============================================================
+let theta=0.7, phi=1.15, dist=7, distT=7;
+let drag=false,lx=0,ly=0,downX=0,downY=0,auto=true,pinch0=0,pinchD0=0;
+function updCam(){
+  const x=dist*Math.sin(phi)*Math.cos(theta), y=dist*Math.cos(phi), z=dist*Math.sin(phi)*Math.sin(theta);
+  camera.position.set(x,y,z); camera.lookAt(0,0,0);
+}
+canvas.addEventListener("pointerdown",e=>{drag=true;lx=e.clientX;ly=e.clientY;downX=e.clientX;downY=e.clientY;auto=false;canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;theta-=dx*0.005;phi=Math.max(0.25,Math.min(Math.PI-0.25,phi-dy*0.005));});
+canvas.addEventListener("pointerup",e=>{drag=false;if(Math.abs(e.clientX-downX)<6&&Math.abs(e.clientY-downY)<6)pickSphere(e.clientX,e.clientY);setTimeout(()=>auto=true,4000);});
+canvas.addEventListener("wheel",e=>{e.preventDefault();distT=Math.max(4,Math.min(10,distT+e.deltaY*0.006));},{passive:false});
+canvas.addEventListener("touchstart",e=>{if(e.touches.length===2){pinchD0=tdist(e);pinch0=distT;}});
+canvas.addEventListener("touchmove",e=>{if(e.touches.length===2){e.preventDefault();distT=Math.max(4,Math.min(10,pinch0*(pinchD0/Math.max(1,tdist(e)))));}},{passive:false});
+function tdist(e){const a=e.touches[0],b=e.touches[1];return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
+
+// clic sur l'organisme → éveil (boost connaissance + onde)
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+function pickSphere(px,py){
+  ndc.x=(px/innerWidth)*2-1; ndc.y=-(py/innerHeight)*2+1;
+  ray.setFromCamera(ndc,camera);
+  if(ray.intersectObject(organism,false).length){
+    S.know=Math.min(1,S.know+0.06);
+    uniforms.uPulse.value=Math.min(1.6,uniforms.uPulse.value+0.9);
+    document.getElementById("hint").style.opacity="0";
+  }
+}
+
+// ============================================================
+//  ACTIONS HUD (test des 4 ressources)
+// ============================================================
+document.querySelectorAll("[data-grow]").forEach(b=>{
+  b.addEventListener("click",()=>{
+    const k=b.dataset.grow; S[k]=Math.min(1,S[k]+0.08);
+    uniforms.uPulse.value=Math.min(1.6,uniforms.uPulse.value+0.5);
+  });
+});
+
+// ============================================================
+//  BOUCLE
+// ============================================================
+let last=performance.now();
+function tick(now){
+  requestAnimationFrame(tick);
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+
+  // l'organisme "vit" : la connaissance nourrit lentement les autres ressources
+  if(S.know>0.15){
+    S.energy =Math.min(1,S.energy +dt*0.012*S.know);
+    S.culture=Math.min(1,S.culture+dt*0.009*S.know*(0.5+S.energy));
+    S.pop    =Math.min(1,S.pop    +dt*0.010*S.know*(0.5+S.energy));
+  }
+
+  // lissage uniforms
+  uniforms.uTime.value=now*0.001;
+  uniforms.uKnow.value   +=(S.know   -uniforms.uKnow.value)*0.05;
+  uniforms.uEnergy.value +=(S.energy -uniforms.uEnergy.value)*0.05;
+  uniforms.uCulture.value+=(S.culture-uniforms.uCulture.value)*0.05;
+  uniforms.uPop.value    +=(S.pop    -uniforms.uPop.value)*0.05;
+  uniforms.uPulse.value  *=0.93;
+
+  // rotation lente continue
+  organism.rotation.y+=0.001;
+
+  // caméra
+  if(auto) theta+=0.0006;
+  dist+=(distT-dist)*0.1;
+  updCam();
+
+  // HUD
+  for(const k of ["know","energy","culture","pop"]){
+    disp[k]+=(S[k]-disp[k])*0.15;
+    const pct=Math.round(disp[k]*100);
+    document.getElementById("bar-"+k).style.width=pct+"%";
+    document.getElementById("v-"+k).textContent=pct+"%";
+  }
+
+  renderer.render(scene,camera);
+}
+updCam(); requestAnimationFrame(tick);
+
+addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight,false);
+});
+})();
+</script>
+</body>
+</html>

@@ -1,8 +1,9 @@
 /* ÆON service worker — offline-capable, update-friendly */
-const CACHE = "aeon-v12";
+const CACHE = "aeon-v13";
 const ASSETS = [
   "./",
   "./index.html",
+  "./organisme.html",
   "./world.js",
   "./vendor/three.min.js",
   "./manifest.webmanifest",
