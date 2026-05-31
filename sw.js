@@ -1,9 +1,11 @@
-/* ÆON service worker — offline-capable, update-friendly */
-const CACHE = "aeon-v73";
+/* ÆON — Le Monde Commun — service worker
+   On met en cache la coquille de l'app (offline-friendly), MAIS jamais
+   les appels au compteur mondial : ceux-ci doivent toujours passer par
+   le réseau pour que le monde reste en temps réel. */
+const CACHE = "aeon-monde-v1";
 const ASSETS = [
   "./",
   "./index.html",
-  "./palimpseste.js",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
@@ -28,6 +30,11 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+
+  // Compteur mondial : toujours réseau, jamais de cache.
+  if (url.origin !== self.location.origin) return;
+
+  // Navigation / HTML : réseau d'abord, cache en secours (offline).
   if (req.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname.endsWith("/")) {
     e.respondWith(
       fetch(req)
@@ -40,6 +47,8 @@ self.addEventListener("fetch", (e) => {
     );
     return;
   }
+
+  // Autres ressources locales : cache d'abord.
   e.respondWith(
     caches.match(req).then((r) => r || fetch(req).then((res) => {
       const copy = res.clone();

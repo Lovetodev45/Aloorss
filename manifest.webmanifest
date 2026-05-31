@@ -1,14 +1,14 @@
 {
-  "name": "ÆON — La Simulation de l'Humanité",
+  "name": "ÆON — Le Monde Commun",
   "short_name": "ÆON",
-  "description": "Guidez l'humanité de l'Âge de Pierre à la Transcendance spatiale.",
+  "description": "Un seul monde. Construit par tous. En direct. Ajoute ton étincelle à l'unique civilisation de l'humanité.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#04050b",
-  "theme_color": "#04050b",
+  "background_color": "#05060c",
+  "theme_color": "#05060c",
   "categories": ["games", "entertainment"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
